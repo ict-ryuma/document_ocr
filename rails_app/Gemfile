@@ -38,6 +38,12 @@ gem "ruby-openai", "~> 7.0"
 # HTTP client for API requests
 gem "httparty", "~> 0.22"
 
+# Google Cloud Document AI for OCR fallback
+gem "google-cloud-document_ai", "~> 1.0"
+
+# Image processing for PDF to image conversion
+gem "mini_magick", "~> 4.12"
+
 # Hotwire: Turbo and Stimulus
 gem "turbo-rails"
 gem "stimulus-rails"
