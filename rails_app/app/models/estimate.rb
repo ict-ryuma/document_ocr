@@ -13,6 +13,6 @@ class Estimate < ApplicationRecord
   end
 
   def as_json(options = {})
-    super(options.merge(methods: [:items_count]))
+    super(options.merge(methods: [ :items_count ]))
   end
 end

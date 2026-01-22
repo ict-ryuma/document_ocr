@@ -44,8 +44,8 @@ class EstimatePriceQuery
   end
 
   def calculate_split_best(items)
-    parts_items = items.where(cost_type: 'parts')
-    labor_items = items.where(cost_type: 'labor')
+    parts_items = items.where(cost_type: "parts")
+    labor_items = items.where(cost_type: "labor")
 
     parts_min = parts_items.minimum(:amount_excl_tax) || 0
     labor_min = labor_items.minimum(:amount_excl_tax) || 0

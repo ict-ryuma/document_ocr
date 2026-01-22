@@ -2,7 +2,7 @@ Rails.application.routes.draw do
   # Web UI routes
   root "estimates#new"
 
-  resources :estimates, only: [:index, :new, :create, :show] do
+  resources :estimates, only: [ :index, :new, :create, :show ] do
     collection do
       post :confirm  # Save user-confirmed estimate data
       get :preview_file  # Preview uploaded PDF/image file

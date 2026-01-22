@@ -1,6 +1,6 @@
-require 'net/http'
-require 'json'
-require 'uri'
+require "net/http"
+require "json"
+require "uri"
 
 class KintoneService
   class KintoneError < StandardError; end
@@ -8,48 +8,42 @@ class KintoneService
   # kintone App 316 フィールドマッピング (発注書サブテーブル対応)
   FIELD_MAPPING = {
     # メインフィールド
-    item_name: 'item_name',
-    best_vendor: 'best_vendor',
-    best_single_total: 'best_single_total',
-    split_parts_min: 'split_parts_min',
-    split_labor_min: 'split_labor_min',
-    split_total: 'split_total',
-    comparison_date: 'comparison_date',
-    notes: 'notes',
+    item_name: "item_name",
+    best_vendor: "best_vendor",
+    best_single_total: "best_single_total",
+    split_parts_min: "split_parts_min",
+    split_labor_min: "split_labor_min",
+    split_total: "split_total",
+    comparison_date: "comparison_date",
+    notes: "notes",
 
     # サブテーブル「発注書」
-    subtable_order: '発注書',
+    subtable_order: "発注書",
 
     # サブテーブル内フィールド (Document AI対応)
-    item_name_field: '品名・加工方法',       # Document AIで解析した品名
-    quantity_field: '数量',                  # Document AIで解析した数量
-    unit_price_field: '単価',                # Document AIで解析した単価
-    tax_category_field: '課税区分',          # 課税区分（固定: 課税）
-    normalized_name_field: '正規化品名',     # システムで正規化した品名
-    cost_type_field: '費目'                  # 部品/工賃の区分
+    item_name_field: "品名・加工方法",       # Document AIで解析した品名
+    quantity_field: "数量",                  # Document AIで解析した数量
+    unit_price_field: "単価",                # Document AIで解析した単価
+    tax_category_field: "課税区分",          # 課税区分（固定: 課税）
+    normalized_name_field: "正規化品名",     # システムで正規化した品名
+    cost_type_field: "費目"                  # 部品/工賃の区分
   }.freeze
 
   def initialize
-    @domain = ENV['KINTONE_DOMAIN']
-    @token = ENV['KINTONE_API_TOKEN']
+    @domain = ENV["KINTONE_DOMAIN"]
+    @token = ENV["KINTONE_API_TOKEN"]
     @app_id = 316
 
     validate_credentials!
   end
 
+  # 最安比較結果をkintoneにプッシュ（サブテーブル「発注書」対応）
+  #
+  # @param item_name_norm [String] 正規化品名 (例: wiper_blade)
+  # @param recommendation_data [Hash] 最安比較結果 { single_vendor_best: {...}, split_theoretical_best: {...} }
+  # @param estimate_items [Array] EstimateItemの配列 (Document AI解析データ)
+  # @return [Hash] { success: true/false, kintone_record_id: "...", ... }
   def push_recommendation(item_name_norm, recommendation_data, estimate_items: [])
-    """
-    最安比較結果をkintoneにプッシュ（サブテーブル「発注書」対応）
-
-    Args:
-      item_name_norm: 正規化品名 (例: wiper_blade)
-      recommendation_data: 最安比較結果 { single_vendor_best: {...}, split_theoretical_best: {...} }
-      estimate_items: EstimateItemの配列 (Document AI解析データ)
-
-    Returns:
-      { success: true/false, kintone_record_id: "...", ... }
-    """
-
     # メインフィールドを構築
     record = build_main_fields(item_name_norm, recommendation_data)
 
@@ -69,7 +63,7 @@ class KintoneService
         kintone_record_id: result[:record_id],
         item_name: item_name_norm,
         details_count: estimate_items.size,
-        subtable_name: '発注書'
+        subtable_name: "発注書"
       }
     else
       {
@@ -86,18 +80,12 @@ class KintoneService
     }
   end
 
+  # 見積データとPDFファイルをkintoneにアップロード（Web UI用）
+  #
+  # @param estimate [Estimate] Estimateモデルのインスタンス
+  # @param pdf_file_path [String] PDFファイルのパス
+  # @return [Hash] { success: true/false, kintone_record_id: "...", file_key: "..." }
   def push_estimate_with_file(estimate, pdf_file_path)
-    """
-    見積データとPDFファイルをkintoneにアップロード（Web UI用）
-
-    Args:
-      estimate: Estimateモデルのインスタンス
-      pdf_file_path: PDFファイルのパス
-
-    Returns:
-      { success: true/false, kintone_record_id: "...", file_key: "..." }
-    """
-
     # Step 1: Upload PDF file to kintone
     file_upload_result = upload_file(pdf_file_path)
 
@@ -113,8 +101,8 @@ class KintoneService
     # Step 2: Create record with file attachment
     record = {
       # File attachment field (仮にフィールドコードを 'pdf_file' と想定)
-      'pdf_file' => {
-        value: [{ fileKey: file_key }]
+      "pdf_file" => {
+        value: [ { fileKey: file_key } ]
       }
     }
 
@@ -150,16 +138,11 @@ class KintoneService
     }
   end
 
+  # kintone File APIにファイルをアップロード
+  #
+  # @param file_path [String] アップロードするファイルのパス
+  # @return [Hash] { success: true/false, file_key: "..." }
   def upload_file(file_path)
-    """
-    kintone File APIにファイルをアップロード
-
-    Args:
-      file_path: アップロードするファイルのパス
-
-    Returns:
-      { success: true/false, file_key: "..." }
-    """
     unless File.exist?(file_path)
       return { success: false, error: "File not found: #{file_path}" }
     end
@@ -171,11 +154,11 @@ class KintoneService
     http.open_timeout = 30
 
     request = Net::HTTP::Post.new(uri.path)
-    request['X-Cybozu-API-Token'] = @token
+    request["X-Cybozu-API-Token"] = @token
 
     # Create multipart form data
     boundary = "----RubyFormBoundary#{SecureRandom.hex(16)}"
-    request['Content-Type'] = "multipart/form-data; boundary=#{boundary}"
+    request["Content-Type"] = "multipart/form-data; boundary=#{boundary}"
 
     file_content = File.binread(file_path)
     file_name = File.basename(file_path)
@@ -196,11 +179,11 @@ class KintoneService
     result = JSON.parse(response.body)
 
     if response.code.to_i >= 200 && response.code.to_i < 300
-      file_key = result['fileKey']
+      file_key = result["fileKey"]
       Rails.logger.info "File uploaded successfully: fileKey=#{file_key}"
       { success: true, file_key: file_key }
     else
-      error_msg = result['message'] || result['error'] || 'Unknown error'
+      error_msg = result["message"] || result["error"] || "Unknown error"
       Rails.logger.error "kintone file upload error: #{error_msg} (#{response.code})"
       { success: false, error: error_msg }
     end
@@ -215,25 +198,25 @@ class KintoneService
     { success: false, error: e.message }
   end
 
+  # kintone接続確認
   def health_check
-    """kintone接続確認"""
     uri = URI("https://#{@domain}/k/v1/app.json?id=#{@app_id}")
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
     http.read_timeout = 10
 
-    request = Net::HTTP::Get.new(uri.path + '?' + uri.query)
-    request['X-Cybozu-API-Token'] = @token
+    request = Net::HTTP::Get.new(uri.path + "?" + uri.query)
+    request["X-Cybozu-API-Token"] = @token
 
     response = http.request(request)
 
     if response.code.to_i == 200
-      { status: 'healthy', app_id: @app_id, app_name: '発注管理' }
+      { status: "healthy", app_id: @app_id, app_name: "発注管理" }
     else
-      { status: 'unhealthy', error: "HTTP #{response.code}" }
+      { status: "unhealthy", error: "HTTP #{response.code}" }
     end
   rescue => e
-    { status: 'unhealthy', error: e.message }
+    { status: "unhealthy", error: e.message }
   end
 
   private
@@ -248,47 +231,41 @@ class KintoneService
     end
   end
 
+  # メインフィールドを構築
+  # 最安比較結果をkintoneメインフィールドにマッピング
   def build_main_fields(item_name_norm, recommendation_data)
-    """
-    メインフィールドを構築
-
-    最安比較結果をkintoneメインフィールドにマッピング
-    """
     single = recommendation_data[:single_vendor_best] || {}
     split = recommendation_data[:split_theoretical_best] || {}
 
     {
       FIELD_MAPPING[:item_name] => { value: item_name_norm },
-      FIELD_MAPPING[:best_vendor] => { value: single[:vendor_name] || '' },
+      FIELD_MAPPING[:best_vendor] => { value: single[:vendor_name] || "" },
       FIELD_MAPPING[:best_single_total] => { value: single[:total] || 0 },
       FIELD_MAPPING[:split_parts_min] => { value: split[:parts_min] || 0 },
       FIELD_MAPPING[:split_labor_min] => { value: split[:labor_min] || 0 },
       FIELD_MAPPING[:split_total] => { value: split[:total] || 0 },
-      FIELD_MAPPING[:comparison_date] => { value: Date.today.strftime('%Y-%m-%d') },
+      FIELD_MAPPING[:comparison_date] => { value: Date.today.strftime("%Y-%m-%d") },
       FIELD_MAPPING[:notes] => {
         value: generate_notes(item_name_norm, single, split)
       }
     }
   end
 
+  # サブテーブル「発注書」の行を構築
+  #
+  # Document AI解析データをkintoneサブテーブルにマッピング:
+  # - 品名・加工方法 <- item_name_raw
+  # - 数量 <- quantity (Document AI解析)
+  # - 単価 <- amount_excl_tax
+  # - 課税区分 <- 固定で「課税」
+  # - 正規化品名 <- item_name_norm
+  # - 費目 <- cost_type (parts/labor)
   def build_subtable_rows(estimate_items)
-    """
-    サブテーブル「発注書」の行を構築
-
-    Document AI解析データをkintoneサブテーブルにマッピング:
-    - 品名・加工方法 <- item_name_raw
-    - 数量 <- quantity (Document AI解析)
-    - 単価 <- amount_excl_tax
-    - 課税区分 <- 固定で「課税」
-    - 正規化品名 <- item_name_norm
-    - 費目 <- cost_type (parts/labor)
-    """
     estimate_items.map do |item|
       # EstimateItemオブジェクトまたはハッシュに対応
-      vendor_name = item.try(:estimate)&.vendor_name || item[:vendor_name] || ''
-      item_name_raw = item.try(:item_name_raw) || item[:item_name_raw] || ''
-      item_name_norm = item.try(:item_name_norm) || item[:item_name_norm] || ''
-      cost_type = item.try(:cost_type) || item[:cost_type] || 'parts'
+      item_name_raw = item.try(:item_name_raw) || item[:item_name_raw] || ""
+      item_name_norm = item.try(:item_name_norm) || item[:item_name_norm] || ""
+      cost_type = item.try(:cost_type) || item[:cost_type] || "parts"
       amount = item.try(:amount_excl_tax) || item[:amount_excl_tax] || 0
       quantity = item.try(:quantity) || item[:quantity] || 1
 
@@ -305,7 +282,7 @@ class KintoneService
             value: amount  # 単価（税抜）
           },
           FIELD_MAPPING[:tax_category_field] => {
-            value: '課税'  # 課税区分（固定）
+            value: "課税"  # 課税区分（固定）
           },
           FIELD_MAPPING[:normalized_name_field] => {
             value: item_name_norm  # 正規化品名 (wiper_blade等)
@@ -318,8 +295,8 @@ class KintoneService
     end
   end
 
+  # 備考欄の自動生成
   def generate_notes(item_name, single, split)
-    """備考欄の自動生成"""
     notes = []
     notes << "【自動生成】Document AI解析結果"
     notes << "品名: #{item_name}"
@@ -339,8 +316,8 @@ class KintoneService
     notes.join("\n")
   end
 
+  # kintoneにレコードを作成
   def create_record(record_data)
-    """kintoneにレコードを作成"""
     uri = URI("https://#{@domain}/k/v1/record.json")
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
@@ -348,8 +325,8 @@ class KintoneService
     http.open_timeout = 10
 
     request = Net::HTTP::Post.new(uri.path)
-    request['X-Cybozu-API-Token'] = @token
-    request['Content-Type'] = 'application/json'
+    request["X-Cybozu-API-Token"] = @token
+    request["Content-Type"] = "application/json"
 
     body = {
       app: @app_id,
@@ -364,9 +341,9 @@ class KintoneService
 
     if response.code.to_i >= 200 && response.code.to_i < 300
       Rails.logger.info "Kintone record created: #{result['id']}"
-      { success: true, record_id: result['id'] }
+      { success: true, record_id: result["id"] }
     else
-      error_msg = result['message'] || result['error'] || 'Unknown error'
+      error_msg = result["message"] || result["error"] || "Unknown error"
       Rails.logger.error "Kintone API error: #{error_msg} (#{response.code})"
       Rails.logger.error "Response body: #{response.body}"
       { success: false, error: error_msg }

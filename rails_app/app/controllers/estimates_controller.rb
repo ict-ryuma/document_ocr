@@ -1,6 +1,6 @@
 class EstimatesController < ApplicationController
   # Skip CSRF verification for API endpoints only
-  skip_before_action :verify_authenticity_token, only: [:from_pdf, :from_pdf_upload]
+  skip_before_action :verify_authenticity_token, only: [ :from_pdf, :from_pdf_upload ]
 
   # Web UI Actions
 
@@ -35,12 +35,12 @@ class EstimatesController < ApplicationController
     uploaded_file = params[:pdf]
 
     unless uploaded_file
-      flash[:error] = 'PDFファイルをアップロードしてください'
+      flash[:error] = "PDFファイルをアップロードしてください"
       return redirect_to new_estimate_path
     end
 
     # Save to temporary file
-    temp_file = Tempfile.new(['upload', '.pdf'])
+    temp_file = Tempfile.new([ "upload", ".pdf" ])
     begin
       temp_file.binmode
       temp_file.write(uploaded_file.read)
@@ -76,21 +76,21 @@ class EstimatesController < ApplicationController
     temp_pdf_path = session[:temp_pdf_path]
 
     unless temp_pdf_path && File.exist?(temp_pdf_path)
-      return render plain: 'File not found', status: :not_found
+      return render plain: "File not found", status: :not_found
     end
 
     # Validate and determine content type using magic bytes
     content_type = detect_content_type(temp_pdf_path)
 
     unless content_type
-      return render plain: 'Unsupported file type', status: :unsupported_media_type
+      return render plain: "Unsupported file type", status: :unsupported_media_type
     end
 
     # Send file with inline disposition (display in browser)
     send_file temp_pdf_path,
               type: content_type,
-              disposition: 'inline',
-              filename: session[:pdf_filename] || 'preview'
+              disposition: "inline",
+              filename: session[:pdf_filename] || "preview"
   end
 
   def confirm
@@ -131,7 +131,7 @@ class EstimatesController < ApplicationController
       @estimate.update(ai_analysis: analysis_result.to_json)
 
       # Upload to kintone with file (only if save_action is "kintone")
-      if save_action == 'kintone' && temp_pdf_path && File.exist?(temp_pdf_path)
+      if save_action == "kintone" && temp_pdf_path && File.exist?(temp_pdf_path)
         Rails.logger.info "Uploading to kintone for Estimate #{@estimate.id}"
         kintone_service = KintoneService.new
         kintone_result = kintone_service.push_estimate_with_file(@estimate, temp_pdf_path)
@@ -143,7 +143,7 @@ class EstimatesController < ApplicationController
           flash[:warning] = "見積は保存されましたが、kintone送信に失敗しました: #{kintone_result[:error]}"
         end
       else
-        flash[:success] = '見積を保存しました'
+        flash[:success] = "見積を保存しました"
       end
 
       # Clean up temp file
@@ -158,7 +158,7 @@ class EstimatesController < ApplicationController
 
       redirect_to estimate_path(@estimate)
     else
-      flash[:error] = @estimate.errors.full_messages.join(', ')
+      flash[:error] = @estimate.errors.full_messages.join(", ")
       redirect_to new_estimate_path
     end
   rescue => e
@@ -190,11 +190,11 @@ class EstimatesController < ApplicationController
   rescue ActiveRecord::RecordNotFound
     respond_to do |format|
       format.html {
-        flash[:error] = '見積が見つかりません'
+        flash[:error] = "見積が見つかりません"
         redirect_to estimates_path
       }
       format.json {
-        render json: { error: 'Estimate not found' }, status: :not_found
+        render json: { error: "Estimate not found" }, status: :not_found
       }
     end
   end
@@ -253,11 +253,11 @@ class EstimatesController < ApplicationController
     uploaded_file = params[:pdf]
 
     unless uploaded_file
-      return render json: { error: 'PDF file is required' }, status: :bad_request
+      return render json: { error: "PDF file is required" }, status: :bad_request
     end
 
     # Save to temporary file
-    temp_file = Tempfile.new(['upload', '.pdf'])
+    temp_file = Tempfile.new([ "upload", ".pdf" ])
     begin
       temp_file.binmode
       temp_file.write(uploaded_file.read)
@@ -310,10 +310,10 @@ class EstimatesController < ApplicationController
   # Detect content type using magic bytes for security
   # Returns nil if file type is not allowed
   MAGIC_BYTES = {
-    'application/pdf' => [0x25, 0x50, 0x44, 0x46],      # %PDF
-    'image/jpeg' => [0xFF, 0xD8, 0xFF],                  # JPEG
-    'image/png' => [0x89, 0x50, 0x4E, 0x47],            # PNG
-    'image/gif' => [0x47, 0x49, 0x46, 0x38]             # GIF8
+    "application/pdf" => [ 0x25, 0x50, 0x44, 0x46 ],      # %PDF
+    "image/jpeg" => [ 0xFF, 0xD8, 0xFF ],                  # JPEG
+    "image/png" => [ 0x89, 0x50, 0x4E, 0x47 ],            # PNG
+    "image/gif" => [ 0x47, 0x49, 0x46, 0x38 ]             # GIF8
   }.freeze
 
   def detect_content_type(file_path)

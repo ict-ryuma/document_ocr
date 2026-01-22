@@ -28,7 +28,7 @@ Rails.application.configure do
   config.force_ssl = true
 
   # Skip http-to-https redirect for health check endpoints.
-  config.ssl_options = { redirect: { exclude: ->(request) { request.path.in?(["/up", "/health"]) } } }
+  config.ssl_options = { redirect: { exclude: ->(request) { request.path.in?([ "/up", "/health" ]) } } }
 
   # Log to STDOUT with the current request id as a default log tag.
   config.log_tags = [ :request_id ]
@@ -83,5 +83,5 @@ Rails.application.configure do
   end
 
   # Skip DNS rebinding protection for health check endpoints.
-  config.host_authorization = { exclude: ->(request) { request.path.in?(["/up", "/health"]) } }
+  config.host_authorization = { exclude: ->(request) { request.path.in?([ "/up", "/health" ]) } }
 end

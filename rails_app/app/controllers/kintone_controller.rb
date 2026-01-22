@@ -4,7 +4,7 @@ class KintoneController < ApplicationController
     item_name = params[:item]
 
     if item_name.blank?
-      return render json: { error: 'item parameter is required' }, status: :bad_request
+      return render json: { error: "item parameter is required" }, status: :bad_request
     end
 
     # Compute recommendations
@@ -18,7 +18,7 @@ class KintoneController < ApplicationController
     # Get all items for this normalized name for subtable
     estimate_items = EstimateItem.includes(:estimate)
                                   .where(item_name_norm: item_name)
-                                  .order('estimates.estimate_date DESC')
+                                  .order("estimates.estimate_date DESC")
 
     # Push to kintone with subtable
     kintone_service = KintoneService.new
@@ -49,6 +49,6 @@ class KintoneController < ApplicationController
 
     render json: result
   rescue => e
-    render json: { status: 'unhealthy', error: e.message }
+    render json: { status: "unhealthy", error: e.message }
   end
 end
