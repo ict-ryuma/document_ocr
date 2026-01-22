@@ -1,0 +1,21 @@
+# MySQL configuration for all environments
+default: &default
+  adapter: mysql2
+  encoding: utf8mb4
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  username: <%= ENV['DATABASE_USERNAME'] || 'root' %>
+  password: <%= ENV['DATABASE_PASSWORD'] || 'vibepassword' %>
+  host: <%= ENV['DATABASE_HOST'] || 'mysql' %>
+  port: 3306
+
+development:
+  <<: *default
+  database: vibe_rails_development
+
+test:
+  <<: *default
+  database: vibe_rails_test
+
+production:
+  <<: *default
+  database: vibe_rails

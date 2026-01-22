@@ -1,0 +1,226 @@
+<div class="max-w-7xl mx-auto">
+  <!-- Header Alert -->
+  <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+    <div class="flex">
+      <div class="flex-shrink-0">
+        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+      </div>
+      <div class="ml-3">
+        <p class="text-sm text-yellow-700">
+          <strong>AI解析結果（下書き）</strong> - 左の画像を見ながら内容を確認し、必要に応じて修正してから保存ボタンを押してください。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2-Column Layout: Preview + Form -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Left Column: PDF/Image Preview -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">元データプレビュー</h3>
+      <div class="border border-gray-300 rounded-lg overflow-hidden" style="height: 800px;">
+        <iframe src="<%= preview_file_estimates_path %>"
+                class="w-full h-full"
+                frameborder="0"
+                title="PDF Preview">
+        </iframe>
+      </div>
+    </div>
+
+    <!-- Right Column: Edit Form -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-6">AI解析結果の確認・修正</h2>
+
+      <%= form_with url: confirm_estimates_path, method: :post, local: true, id: "review-form", class: "space-y-6" do |form| %>
+        <!-- Basic Info -->
+        <div class="space-y-4">
+          <div>
+            <%= form.label :vendor_name, "業者名", class: "block text-sm font-medium text-gray-700 mb-2" %>
+            <%= form.text_field :vendor_name,
+                value: @parsed_data[:vendor_name],
+                class: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                required: true %>
+          </div>
+
+          <div>
+            <%= form.label :vendor_address, "住所", class: "block text-sm font-medium text-gray-700 mb-2" %>
+            <%= form.text_field :vendor_address,
+                value: @parsed_data[:vendor_address],
+                placeholder: "例：東京都〇〇区〇〇1-2-3",
+                class: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" %>
+            <p class="mt-1 text-xs text-gray-500">業者の住所（AIが抽出した値）</p>
+          </div>
+
+          <div>
+            <%= form.label :estimate_date, "見積日", class: "block text-sm font-medium text-gray-700 mb-2" %>
+            <%= form.date_field :estimate_date,
+                value: @parsed_data[:estimate_date],
+                class: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                required: true %>
+          </div>
+        </div>
+
+        <!-- Line Items Table -->
+        <div class="mt-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">明細項目</h3>
+
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 border border-gray-300 rounded-lg">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">品名</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">数量</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">金額（税抜）</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">種別</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200" id="items-tbody">
+                <% @parsed_data[:items].each_with_index do |item, index| %>
+                  <tr class="hover:bg-gray-50">
+                    <td class="px-3 py-2">
+                      <%= text_field_tag "items[][item_name_raw]", item[:item_name_raw],
+                          class: "w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-sm",
+                          required: true %>
+                      <%= hidden_field_tag "items[][item_name_norm]", item[:item_name_norm] %>
+                    </td>
+                    <td class="px-3 py-2">
+                      <%= number_field_tag "items[][quantity]", item[:quantity] || 1,
+                          min: 1,
+                          class: "w-16 px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-sm text-right item-quantity",
+                          required: true %>
+                    </td>
+                    <td class="px-3 py-2">
+                      <%= number_field_tag "items[][amount_excl_tax]", item[:amount_excl_tax],
+                          min: 0,
+                          class: "w-24 px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-sm text-right item-amount",
+                          required: true %>
+                    </td>
+                    <td class="px-3 py-2">
+                      <%= select_tag "items[][cost_type]", options_for_select([
+                            ["部品", "parts"],
+                            ["技術料", "labor"],
+                            ["その他", "other"],
+                            ["不明", "unknown"]
+                          ], item[:cost_type]),
+                          class: "px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-sm" %>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Totals -->
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-6 rounded-lg border border-gray-200">
+          <div>
+            <%= form.label :total_excl_tax, "合計（税抜）", class: "block text-sm font-medium text-gray-700 mb-2" %>
+            <%= form.number_field :total_excl_tax,
+                value: @parsed_data[:total_excl_tax],
+                min: 0,
+                class: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-semibold",
+                id: "total-excl-tax",
+                required: true %>
+            <p class="mt-1 text-xs text-gray-500">AIが抽出した金額 (手動修正可能)</p>
+          </div>
+
+          <div>
+            <%= form.label :total_incl_tax, "合計（税込）", class: "block text-sm font-medium text-gray-700 mb-2" %>
+            <%= form.number_field :total_incl_tax,
+                value: @parsed_data[:total_incl_tax],
+                min: 0,
+                class: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-semibold",
+                id: "total-incl-tax",
+                required: true %>
+            <p class="mt-1 text-xs text-gray-500">AIが抽出した金額 (手動修正可能)</p>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+          <%= link_to "キャンセル", new_estimate_path,
+              class: "px-6 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-colors" %>
+
+          <div class="flex gap-3">
+            <%= button_tag type: "submit", name: "save_action", value: "local",
+                class: "px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors",
+                data: { confirm: "この内容で保存しますか？（Kintoneには送信しません）" } do %>
+              <svg class="inline-block w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              保存のみ
+            <% end %>
+
+            <%= button_tag type: "submit", name: "save_action", value: "kintone",
+                class: "px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors",
+                data: { confirm: "この内容で保存し、Kintoneに送信しますか？" } do %>
+              <svg class="inline-block w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+              </svg>
+              保存してKintoneに登録
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Help Text -->
+  <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
+    <h3 class="text-lg font-semibold text-blue-900 mb-3">確認ポイント</h3>
+    <ul class="list-disc list-inside space-y-2 text-sm text-blue-800">
+      <li>左の元データと照らし合わせて、品名が正しく抽出されているか確認</li>
+      <li>業者の住所が正確に抽出されているか確認（自社住所ではないこと）</li>
+      <li>数量と金額が正確か確認</li>
+      <li>合計金額（税抜・税込）が見積書の記載と一致しているか確認</li>
+      <li>修正完了後、用途に応じて「保存のみ」または「保存してKintoneに登録」をクリック</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  // Excel-like auto-calculation: Update totals in real-time as user edits line items
+  document.addEventListener('DOMContentLoaded', () => {
+    const itemsTable = document.getElementById('items-tbody');
+    const totalExclTaxField = document.getElementById('total-excl-tax');
+    const totalInclTaxField = document.getElementById('total-incl-tax');
+
+    // Recalculate totals instantly when quantity or amount changes
+    itemsTable.addEventListener('input', (e) => {
+      if (e.target.classList.contains('item-quantity') || e.target.classList.contains('item-amount')) {
+        recalculateTotals();
+      }
+    });
+
+    // Calculate subtotal from all line items and update total fields
+    function recalculateTotals() {
+      const rows = itemsTable.querySelectorAll('tr');
+      let subtotal = 0;
+
+      rows.forEach(row => {
+        const amountField = row.querySelector('.item-amount');
+        const quantityField = row.querySelector('.item-quantity');
+
+        if (amountField && quantityField) {
+          const amount = parseFloat(amountField.value) || 0;
+          const quantity = parseFloat(quantityField.value) || 1;
+          // Each row contributes: amount * quantity
+          subtotal += (amount * quantity);
+        }
+      });
+
+      // Update totals immediately without confirmation
+      // Total Excl Tax = Subtotal
+      totalExclTaxField.value = Math.round(subtotal);
+
+      // Total Incl Tax = Subtotal * 1.1 (10% consumption tax)
+      totalInclTaxField.value = Math.floor(subtotal * 1.1);
+    }
+
+    // Run calculation on page load to sync AI-extracted values with line items
+    // This ensures the totals always reflect the sum of line items (line items are the master)
+    recalculateTotals();
+  });
+</script>

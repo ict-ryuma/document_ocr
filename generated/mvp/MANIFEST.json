@@ -1,0 +1,94 @@
+{
+  "project_name": "estimate_aggregator_mvp",
+  "notes": "Rails API + Python PDF parser stub + kintone push. SQLite dev DB, stateless Python engine, ENV-based kintone config.",
+  "files": [
+    {
+      "path": "rails_app/Gemfile",
+      "summary": "Rails dependencies including httparty for kintone API calls"
+    },
+    {
+      "path": "rails_app/config/application.rb",
+      "summary": "Rails API application configuration"
+    },
+    {
+      "path": "rails_app/config/database.yml",
+      "summary": "SQLite configuration for development and test"
+    },
+    {
+      "path": "rails_app/config/routes.rb",
+      "summary": "Routes for estimates, recommendations, kintone push, nl query endpoints"
+    },
+    {
+      "path": "rails_app/config/environments/development.rb",
+      "summary": "Development environment settings"
+    },
+    {
+      "path": "rails_app/config/initializers/cors.rb",
+      "summary": "CORS configuration if needed"
+    },
+    {
+      "path": "rails_app/db/migrate/001_create_estimates.rb",
+      "summary": "Migration for estimates table with vendor, date, totals"
+    },
+    {
+      "path": "rails_app/db/migrate/002_create_estimate_items.rb",
+      "summary": "Migration for estimate_items with raw/norm names, cost_type, amount"
+    },
+    {
+      "path": "rails_app/db/schema.rb",
+      "summary": "Active Record schema definition"
+    },
+    {
+      "path": "rails_app/app/models/estimate.rb",
+      "summary": "Estimate model with has_many items association"
+    },
+    {
+      "path": "rails_app/app/models/estimate_item.rb",
+      "summary": "EstimateItem model belongs_to estimate"
+    },
+    {
+      "path": "rails_app/app/controllers/estimates_controller.rb",
+      "summary": "POST from_pdf, GET index endpoints"
+    },
+    {
+      "path": "rails_app/app/controllers/recommendations_controller.rb",
+      "summary": "GET by_item endpoint returning vendor best, split best, list"
+    },
+    {
+      "path": "rails_app/app/controllers/kintone_controller.rb",
+      "summary": "POST push endpoint computing recommendations and pushing to kintone"
+    },
+    {
+      "path": "rails_app/app/controllers/nl_controller.rb",
+      "summary": "GET query endpoint for rule-based natural language mapping"
+    },
+    {
+      "path": "rails_app/app/services/estimate_importer.rb",
+      "summary": "Service calling Python engine, parsing JSON, persisting Estimate+Items"
+    },
+    {
+      "path": "rails_app/app/services/estimate_price_query.rb",
+      "summary": "Service performing SQL aggregations for recommendations logic"
+    },
+    {
+      "path": "rails_app/app/services/kintone_client.rb",
+      "summary": "Service wrapping kintone REST API calls with ENV token/domain"
+    },
+    {
+      "path": "rails_app/README.md",
+      "summary": "Instructions for setup, running migrations, starting server, curl examples"
+    },
+    {
+      "path": "rails_app/script/seed_sample.rb",
+      "summary": "Optional script creating sample estimate #2 for testing"
+    },
+    {
+      "path": "python_engine/main.py",
+      "summary": "Stateless PDF parser stub outputting JSON or error, normalization rules"
+    },
+    {
+      "path": "python_engine/README.md",
+      "summary": "Python usage: main.py --pdf <path>, dependencies, sample output"
+    }
+  ]
+}

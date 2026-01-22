@@ -1,0 +1,30 @@
+{
+  "project_name": "python_ocr_analysis_engine",
+  "notes": "Rails callable Python MVP for PDF OCR analysis. Stateless CLI that outputs JSON to stdout. OCR is stubbed.",
+  "files": [
+    {
+      "path": "python_engine/main.py",
+      "summary": "CLI entry point. Accepts --pdf argument, calls OCR stub, parses results, normalizes items, outputs JSON to stdout."
+    },
+    {
+      "path": "python_engine/ocr_stub.py",
+      "summary": "OCR stub module returning dummy Japanese invoice text for testing PDF analysis logic."
+    },
+    {
+      "path": "python_engine/parser.py",
+      "summary": "Parser module extracting vendor_name, dates, totals, and line items from OCR text."
+    },
+    {
+      "path": "python_engine/normalizer.py",
+      "summary": "Item name normalizer applying rules (wiper variations → wiper_blade, labor detection)."
+    },
+    {
+      "path": "python_engine/requirements.txt",
+      "summary": "Python dependencies (minimal, likely just argparse built-in)."
+    },
+    {
+      "path": "python_engine/README.md",
+      "summary": "Usage instructions and JSON schema documentation for Rails integration."
+    }
+  ]
+}

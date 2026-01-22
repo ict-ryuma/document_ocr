@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # MySQL 8.0 - shared database server
+  mysql:
+    image: mysql:8.0
+    container_name: vibe_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-vibepassword}
+      MYSQL_ALLOW_EMPTY_PASSWORD: "no"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-vibepassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vibe_network
+
+  # Django OCR Service
+  django:
+    build:
+      context: ./django_ocr
+      dockerfile: Dockerfile
+    container_name: vibe_django
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-django-dev-secret-key-change-in-prod}
+      - DEBUG=${DEBUG:-True}
+      - ALLOWED_HOSTS=localhost,127.0.0.1,django,rails
+      - DB_NAME=vibe_django
+      - DB_USER=root
+      - DB_PASSWORD=${MYSQL_ROOT_PASSWORD:-vibepassword}
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/final-key.json
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-estimate-ocr-project-467308}
+      - DOCUMENT_AI_PROCESSOR_ID=${DOCUMENT_AI_PROCESSOR_ID:-YOUR_PROCESSOR_ID}
+      - DOCUMENT_AI_LOCATION=${DOCUMENT_AI_LOCATION:-us}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_DEPLOYMENT_NAME=${AZURE_DEPLOYMENT_NAME:-gpt-4o}
+      - AZURE_API_VERSION=${AZURE_API_VERSION:-2024-12-01-preview}
+      - CSRF_TRUSTED_ORIGINS=http://localhost:3000,http://rails:3000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./django_ocr:/app
+      - ./final-key.json:/app/final-key.json:ro
+      - django_media:/app/media
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 --access-logfile - --error-logfile - --log-level info --capture-output config.wsgi:application"
+    networks:
+      - vibe_network
+
+  # Rails API Service
+  rails:
+    build:
+      context: ./rails_app
+      dockerfile: Dockerfile.mysql
+    container_name: vibe_rails
+    environment:
+      - RAILS_ENV=${RAILS_ENV:-development}
+      - DATABASE_URL=mysql2://root:${MYSQL_ROOT_PASSWORD:-vibepassword}@mysql:3306/vibe_rails
+      - DJANGO_API_URL=http://django:8000
+      - KINTONE_DOMAIN=${KINTONE_DOMAIN}
+      - KINTONE_API_TOKEN=${KINTONE_API_TOKEN}
+      - KINTONE_APP_ID=${KINTONE_APP_ID:-316}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_DEPLOYMENT_NAME=${AZURE_DEPLOYMENT_NAME:-gpt-4o}
+      - AZURE_API_VERSION=${AZURE_API_VERSION:-2024-12-01-preview}
+      - SECRET_KEY_BASE=${RAILS_SECRET_KEY_BASE:-rails-dev-secret}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./rails_app:/rails
+      - rails_storage:/rails/storage
+      - rails_tmp:/rails/tmp
+    depends_on:
+      mysql:
+        condition: service_healthy
+      django:
+        condition: service_started
+    command: >
+      sh -c "rm -f tmp/pids/server.pid &&
+             bin/rails db:create db:migrate &&
+             bin/rails server -b 0.0.0.0"
+    networks:
+      - vibe_network
+
+volumes:
+  mysql_data:
+    driver: local
+  django_media:
+    driver: local
+  rails_storage:
+    driver: local
+  rails_tmp:
+    driver: local
+
+networks:
+  vibe_network:
+    driver: bridge

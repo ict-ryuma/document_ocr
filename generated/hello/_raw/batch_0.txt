@@ -1,0 +1,11 @@
+```json
+{
+  "files": [
+    {
+      "path": "python_engine/main.py",
+      "content": "print(\"Hello Vibe\")\n"
+    }
+  ],
+  "notes": "Simple script that prints 'Hello Vibe' when executed"
+}
+```

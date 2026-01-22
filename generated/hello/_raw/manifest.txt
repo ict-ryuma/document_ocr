@@ -1,0 +1,12 @@
+```json
+{
+  "project_name": "python_engine",
+  "notes": "Simple Python script that prints 'Hello Vibe' and exits",
+  "files": [
+    {
+      "path": "python_engine/main.py",
+      "summary": "Entry point script that prints 'Hello Vibe' to stdout"
+    }
+  ]
+}
+```

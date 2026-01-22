@@ -1,0 +1,120 @@
+{
+  "app_id": 316,
+  "app_name": "発注管理",
+  "description": "発注書と見積比較のための発注管理アプリ - Document AI連携",
+  "fields": {
+    "item_name": {
+      "field_code": "item_name",
+      "field_type": "SINGLE_LINE_TEXT",
+      "label": "品名",
+      "required": true,
+      "description": "正規化された品名 (例: wiper_blade, engine_oil)"
+    },
+    "best_vendor": {
+      "field_code": "best_vendor",
+      "field_type": "SINGLE_LINE_TEXT",
+      "label": "最安業者名",
+      "required": false,
+      "description": "単一業者での最安値を提供する業者名"
+    },
+    "best_single_total": {
+      "field_code": "best_single_total",
+      "field_type": "NUMBER",
+      "label": "最安単一合計",
+      "required": false,
+      "description": "単一業者での最安合計金額（税込）"
+    },
+    "split_parts_min": {
+      "field_code": "split_parts_min",
+      "field_type": "NUMBER",
+      "label": "分割最安部品代",
+      "required": false,
+      "description": "部品代の最安値"
+    },
+    "split_labor_min": {
+      "field_code": "split_labor_min",
+      "field_type": "NUMBER",
+      "label": "分割最安工賃",
+      "required": false,
+      "description": "工賃の最安値"
+    },
+    "split_total": {
+      "field_code": "split_total",
+      "field_type": "NUMBER",
+      "label": "分割最安合計",
+      "required": false,
+      "description": "理論上の最安合計（部品代最安 + 工賃最安）"
+    },
+    "発注書": {
+      "field_code": "発注書",
+      "field_type": "SUBTABLE",
+      "label": "発注書",
+      "description": "発注する見積明細のサブテーブル (Document AI解析結果)",
+      "fields": {
+        "品名・加工方法": {
+          "field_code": "品名・加工方法",
+          "field_type": "SINGLE_LINE_TEXT",
+          "label": "品名・加工方法",
+          "description": "Document AIで解析した品名"
+        },
+        "数量": {
+          "field_code": "数量",
+          "field_type": "NUMBER",
+          "label": "数量",
+          "description": "Document AIで解析した数量"
+        },
+        "単価": {
+          "field_code": "単価",
+          "field_type": "NUMBER",
+          "label": "単価",
+          "description": "Document AIで解析した単価（税抜）"
+        },
+        "課税区分": {
+          "field_code": "課税区分",
+          "field_type": "DROP_DOWN",
+          "label": "課税区分",
+          "options": ["課税", "非課税", "免税"],
+          "default": "課税",
+          "description": "課税区分（デフォルト: 課税）"
+        },
+        "正規化品名": {
+          "field_code": "正規化品名",
+          "field_type": "SINGLE_LINE_TEXT",
+          "label": "正規化品名",
+          "description": "システムで正規化した品名 (wiper_blade等)"
+        },
+        "費目": {
+          "field_code": "費目",
+          "field_type": "DROP_DOWN",
+          "label": "費目",
+          "options": ["parts", "labor"],
+          "description": "部品/工賃の区分"
+        }
+      }
+    },
+    "comparison_date": {
+      "field_code": "comparison_date",
+      "field_type": "DATE",
+      "label": "比較実行日",
+      "required": false,
+      "description": "最安比較を実行した日付"
+    },
+    "notes": {
+      "field_code": "notes",
+      "field_type": "MULTI_LINE_TEXT",
+      "label": "備考",
+      "required": false,
+      "description": "備考欄（自動生成メッセージ等）"
+    }
+  },
+  "mapping_notes": {
+    "document_ai_to_subtable": {
+      "item_name_raw": "品名・加工方法",
+      "quantity": "数量",
+      "amount_excl_tax": "単価",
+      "tax_category": "課税区分 (固定: 課税)",
+      "item_name_norm": "正規化品名",
+      "cost_type": "費目 (parts/labor)"
+    }
+  }
+}

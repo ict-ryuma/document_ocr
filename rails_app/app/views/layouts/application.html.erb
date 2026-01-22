@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>見積OCRシステム - Document AI + Azure OpenAI</title>
+  <%= csrf_meta_tags %>
+  <%= csp_meta_tag %>
+
+  <!-- Tailwind CSS via CDN for instant styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <%# stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+  <%= javascript_importmap_tags %>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <!-- Header -->
+  <header class="bg-white shadow-sm border-b border-gray-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-gray-900">
+          <%= link_to "見積OCRシステム", root_path, class: "hover:text-blue-600" %>
+        </h1>
+        <nav class="flex gap-4">
+          <%= link_to "アップロード", new_estimate_path, class: "text-blue-600 hover:text-blue-800 font-medium" %>
+          <%= link_to "履歴", estimates_path, class: "text-gray-600 hover:text-gray-900 font-medium" %>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- Flash Messages -->
+  <% if flash.any? %>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+      <% flash.each do |type, message| %>
+        <%
+          alert_class = case type.to_sym
+          when :success
+            "bg-green-50 border-green-200 text-green-800"
+          when :error
+            "bg-red-50 border-red-200 text-red-800"
+          when :warning
+            "bg-yellow-50 border-yellow-200 text-yellow-800"
+          else
+            "bg-blue-50 border-blue-200 text-blue-800"
+          end
+        %>
+        <div class="<%= alert_class %> border rounded-lg p-4 mb-4">
+          <%= message %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <%= yield %>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-gray-200 mt-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-gray-500 text-sm">
+      <p>見積OCRシステム - Google Document AI + Azure OpenAI (gpt-4o) + kintone連携</p>
+    </div>
+  </footer>
+</body>
+</html>

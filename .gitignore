@@ -1,0 +1,34 @@
+# System
+.DS_Store
+*.log
+tmp/
+.env
+
+# Python / Django
+__pycache__/
+*.pyc
+db.sqlite3
+venv/
+.pytest_cache/
+django_ocr/.env
+
+# Ruby / Rails
+/rails_app/log/*
+/rails_app/tmp/*
+/rails_app/storage/*
+/rails_app/node_modules/
+/rails_app/.env
+/rails_app/public/packs
+/rails_app/public/assets
+
+# Docker
+.docker_data/
+
+# Backups
+rails_app__backup_*/
+
+# --- SECRETS (GitHubに怒られたファイルを全て除外) ---
+secret-key.json
+final-key.json
+.env.example
+WEB_UI_IMPLEMENTATION_SUMMARY.md

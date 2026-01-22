@@ -1,0 +1,3 @@
+# Python Engine Requirements
+# No external dependencies required for MVP
+# All functionality uses Python standard library
