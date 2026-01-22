@@ -97,7 +97,7 @@ module Ocr
 
       # Calculate totals from items
       total_excl_tax = items.sum { |item| item[:amount_excl_tax] }
-      total_incl_tax = (total_excl_tax * 1.1).to_i
+      total_incl_tax = (total_excl_tax * (1 + CONSUMPTION_TAX_RATE)).to_i
 
       {
         vendor_address: nil,

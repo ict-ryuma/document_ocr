@@ -11,6 +11,9 @@ module Ocr
     class TimeoutError < StandardError; end
     class ConfigurationError < StandardError; end
 
+    # Japan consumption tax rate (10% as of 2019-10-01)
+    CONSUMPTION_TAX_RATE = 0.10
+
     # Extract data from PDF/image file
     #
     # @param file_path [String] Path to PDF or image file

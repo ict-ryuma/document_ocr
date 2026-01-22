@@ -3,6 +3,11 @@ class EstimatePriceQuery
     @item_name_norm = item_name_norm
   end
 
+  # Alias for compatibility with controllers calling .execute
+  def execute
+    call
+  end
+
   def call
     items = EstimateItem.where(item_name_norm: @item_name_norm)
     return { error: "No items found for #{@item_name_norm}" } if items.empty?

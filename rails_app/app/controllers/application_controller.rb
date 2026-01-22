@@ -1,25 +1,35 @@
 class ApplicationController < ActionController::Base
   def health
-    # Check Django connection
-    django_parser = DjangoPdfParser.new
-    django_health = django_parser.health_check
+    # Check database connection by executing a simple query
+    db_healthy = begin
+      ActiveRecord::Base.connection.execute("SELECT 1")
+      true
+    rescue StandardError
+      false
+    end
 
-    # Check database connection
-    db_healthy = ActiveRecord::Base.connection.active? rescue false
+    # Check OCR adapters availability
+    ocr_available = begin
+      OcrOrchestrationService.new.available_adapters.any?
+    rescue StandardError
+      false
+    end
 
-    # Overall health status
-    healthy = django_health[:status] == 'healthy' && db_healthy
+    healthy = db_healthy
 
-    render json: {
-      status: healthy ? 'healthy' : 'degraded',
-      services: {
-        rails: {
-          status: 'healthy',
-          database: db_healthy ? 'connected' : 'disconnected'
+    # In production, only return minimal status to avoid information leakage
+    if Rails.env.production?
+      status_code = healthy ? :ok : :service_unavailable
+      render json: { status: healthy ? "ok" : "error" }, status: status_code
+    else
+      render json: {
+        status: healthy ? "healthy" : "degraded",
+        services: {
+          database: db_healthy ? "connected" : "disconnected",
+          ocr_adapters: ocr_available ? "available" : "unavailable"
         },
-        django: django_health
-      },
-      timestamp: Time.now.iso8601
-    }
+        timestamp: Time.current.iso8601
+      }
+    end
   end
 end

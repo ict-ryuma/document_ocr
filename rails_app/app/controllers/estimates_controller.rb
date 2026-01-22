@@ -79,20 +79,12 @@ class EstimatesController < ApplicationController
       return render plain: 'File not found', status: :not_found
     end
 
-    # Determine content type based on file extension
-    file_ext = File.extname(temp_pdf_path).downcase
-    content_type = case file_ext
-                   when '.pdf'
-                     'application/pdf'
-                   when '.jpg', '.jpeg'
-                     'image/jpeg'
-                   when '.png'
-                     'image/png'
-                   when '.gif'
-                     'image/gif'
-                   else
-                     'application/octet-stream'
-                   end
+    # Validate and determine content type using magic bytes
+    content_type = detect_content_type(temp_pdf_path)
+
+    unless content_type
+      return render plain: 'Unsupported file type', status: :unsupported_media_type
+    end
 
     # Send file with inline disposition (display in browser)
     send_file temp_pdf_path,
@@ -311,5 +303,31 @@ class EstimatesController < ApplicationController
       temp_file.close
       temp_file.unlink
     end
+  end
+
+  private
+
+  # Detect content type using magic bytes for security
+  # Returns nil if file type is not allowed
+  MAGIC_BYTES = {
+    'application/pdf' => [0x25, 0x50, 0x44, 0x46],      # %PDF
+    'image/jpeg' => [0xFF, 0xD8, 0xFF],                  # JPEG
+    'image/png' => [0x89, 0x50, 0x4E, 0x47],            # PNG
+    'image/gif' => [0x47, 0x49, 0x46, 0x38]             # GIF8
+  }.freeze
+
+  def detect_content_type(file_path)
+    return nil unless File.exist?(file_path)
+
+    # Read first bytes of file
+    header = File.binread(file_path, 8).bytes
+
+    MAGIC_BYTES.each do |content_type, magic|
+      if header.first(magic.length) == magic
+        return content_type
+      end
+    end
+
+    nil
   end
 end

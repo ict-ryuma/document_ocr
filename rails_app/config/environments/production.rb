@@ -22,13 +22,13 @@ Rails.application.configure do
   config.active_storage.service = :local
 
   # Assume all access to the app is happening through a SSL-terminating reverse proxy.
-  # config.assume_ssl = true
+  config.assume_ssl = true
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  # config.force_ssl = true
+  config.force_ssl = true
 
-  # Skip http-to-https redirect for the default health check endpoint.
-  # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
+  # Skip http-to-https redirect for health check endpoints.
+  config.ssl_options = { redirect: { exclude: ->(request) { request.path.in?(["/up", "/health"]) } } }
 
   # Log to STDOUT with the current request id as a default log tag.
   config.log_tags = [ :request_id ]
@@ -77,11 +77,11 @@ Rails.application.configure do
   config.active_record.attributes_for_inspect = [ :id ]
 
   # Enable DNS rebinding protection and other `Host` header attacks.
-  # config.hosts = [
-  #   "example.com",     # Allow requests from example.com
-  #   /.*\.example\.com/ # Allow requests from subdomains like `www.example.com`
-  # ]
-  #
-  # Skip DNS rebinding protection for the default health check endpoint.
-  # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+  # Configure allowed hosts via RAILS_ALLOWED_HOSTS environment variable (comma-separated)
+  if ENV["RAILS_ALLOWED_HOSTS"].present?
+    config.hosts = ENV["RAILS_ALLOWED_HOSTS"].split(",").map(&:strip)
+  end
+
+  # Skip DNS rebinding protection for health check endpoints.
+  config.host_authorization = { exclude: ->(request) { request.path.in?(["/up", "/health"]) } }
 end

@@ -23,7 +23,7 @@ module Ocr
       Rails.logger.warn "[#{name}] Using dummy data - no real OCR performed"
 
       total_excl_tax = DUMMY_ITEMS.sum { |item| item[:amount_excl_tax] }
-      total_incl_tax = (total_excl_tax * 1.1).to_i
+      total_incl_tax = (total_excl_tax * (1 + CONSUMPTION_TAX_RATE)).to_i
 
       result = {
         vendor_address: nil,

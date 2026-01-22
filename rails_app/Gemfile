@@ -51,6 +51,9 @@ gem "stimulus-rails"
 # JavaScript with importmap
 gem "importmap-rails"
 
+# Asset pipeline for Rails 8
+gem "propshaft"
+
 # CSS framework
 # gem "tailwindcss-rails"  # Disabled: using standalone Tailwind CSS instead
 

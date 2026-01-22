@@ -8,6 +8,9 @@
 class OcrOrchestrationService
   class AllAdaptersFailedError < StandardError; end
 
+  # Japan consumption tax rate (10% as of 2019-10-01)
+  CONSUMPTION_TAX_RATE = 0.10
+
   # Adapter chain in order of preference
   ADAPTER_CHAIN = [
     Ocr::GptVisionAdapter,
@@ -107,7 +110,7 @@ class OcrOrchestrationService
       return raw_result[:total_amount_incl_tax].to_i
     end
 
-    # Fallback: 110% of excl_tax (10% consumption tax)
-    (total_excl_tax * 1.1).to_i
+    # Fallback: apply consumption tax
+    (total_excl_tax * (1 + CONSUMPTION_TAX_RATE)).to_i
   end
 end
