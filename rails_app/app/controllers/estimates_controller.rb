@@ -5,7 +5,7 @@ class EstimatesController < ApplicationController
   # Web UI Actions
 
   def index
-    @estimates = Estimate.all.includes(:estimate_items).order(created_at: :desc).limit(50)
+    @estimates = Estimate.includes(:estimate_items).order(created_at: :desc).limit(50)
 
     respond_to do |format|
       format.html # Renders app/views/estimates/index.html.erb
@@ -17,7 +17,7 @@ class EstimatesController < ApplicationController
             estimate_date: e.estimate_date,
             total_excl_tax: e.total_excl_tax,
             total_incl_tax: e.total_incl_tax,
-            items_count: e.estimate_items.count,
+            items_count: e.estimate_items.size,
             created_at: e.created_at
           }
         }
@@ -177,7 +177,7 @@ class EstimatesController < ApplicationController
   end
 
   def show
-    @estimate = Estimate.find(params[:id])
+    @estimate = Estimate.includes(:estimate_items).find(params[:id])
 
     # Parse AI analysis from JSON
     @ai_analysis = if @estimate.ai_analysis.present?
