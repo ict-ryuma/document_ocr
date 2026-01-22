@@ -7,9 +7,8 @@ class Estimate < ApplicationRecord
   validates :total_incl_tax, presence: true, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 
   def items_count
-    # Use size instead of count to leverage preloaded associations
-    # count always hits DB, size uses loaded records if available
-    estimate_items.size
+    # Use counter cache column for optimal performance
+    estimate_items_count
   end
 
   def as_json(options = {})

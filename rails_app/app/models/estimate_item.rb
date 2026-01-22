@@ -1,5 +1,5 @@
 class EstimateItem < ApplicationRecord
-  belongs_to :estimate
+  belongs_to :estimate, counter_cache: true
 
   validates :item_name_raw, presence: true
   validates :item_name_norm, presence: true

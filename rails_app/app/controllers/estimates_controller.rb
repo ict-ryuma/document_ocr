@@ -5,7 +5,7 @@ class EstimatesController < ApplicationController
   # Web UI Actions
 
   def index
-    @estimates = Estimate.includes(:estimate_items).order(created_at: :desc).limit(50)
+    @estimates = Estimate.order(created_at: :desc).limit(50)
 
     respond_to do |format|
       format.html # Renders app/views/estimates/index.html.erb
@@ -17,7 +17,7 @@ class EstimatesController < ApplicationController
             estimate_date: e.estimate_date,
             total_excl_tax: e.total_excl_tax,
             total_incl_tax: e.total_incl_tax,
-            items_count: e.estimate_items.size,
+            items_count: e.items_count,
             created_at: e.created_at
           }
         }
