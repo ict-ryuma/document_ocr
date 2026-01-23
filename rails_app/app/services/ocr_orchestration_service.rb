@@ -85,7 +85,7 @@ class OcrOrchestrationService
     total_incl_tax = calculate_total_incl_tax(raw_result, total_excl_tax)
 
     {
-      vendor_name: vendor_name.presence || "Unknown Vendor",
+      vendor_name: vendor_name.presence || raw_result[:vendor_name].presence || "Unknown Vendor",
       vendor_address: raw_result[:vendor_address],
       estimate_date: Date.current.to_s,
       total_excl_tax: total_excl_tax,

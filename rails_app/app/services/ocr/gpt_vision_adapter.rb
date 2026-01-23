@@ -28,7 +28,15 @@ module Ocr
       4. **集計行の除外**:
          - 明細表内の「小計」行は items に含めない
 
-      5. **業者住所の抽出**:
+      5. **業者名の抽出**:
+         - 見積書の発行元（工場・業者）の名前を `vendor_name` として抽出してください
+         - 通常、見積書の上部または左上に記載されている会社名・店舗名
+         - 例: 「株式会社○○自動車」「○○モータース」「○○整備工場」
+         - **除外ルール**: 以下は請求先（自社）なので抽出しないこと
+           - 「株式会社IDOM」
+         - 業者名が見つからない場合は null を返す
+
+      6. **業者住所の抽出**:
          - 見積書の発行元（工場・業者）の住所を `vendor_address` として抽出してください
          - **除外ルール**: 以下は請求先（自社）の住所なので抽出しないこと
            - 「東京都渋谷区神南1-19-4」
@@ -36,7 +44,7 @@ module Ocr
          - 通常、見積書の上部または左上に記載されている発行元の住所を抽出
          - 住所が見つからない場合は null を返す
 
-      6. **【最重要】合計金額の厳格な分類**:
+      7. **【最重要】合計金額の厳格な分類**:
          見積書の最下部にある金額を正確に分類してください。以下の優先順位で判断すること。
 
          **A. `total_amount_incl_tax`（税込合計 = 最終支払金額）**:
@@ -64,8 +72,9 @@ module Ocr
             - その直前の金額 → `total_amount_excl_tax`（税抜）
             - その直後の金額 → `total_amount_incl_tax`（税込）
 
-      7. **出力フォーマット**:
+      8. **出力フォーマット**:
          {
+           "vendor_name": "業者名" or null,
            "vendor_address": "業者の住所" or null,
            "items": [
              {"item_name_raw": "品名", "amount_excl_tax": 数値, "quantity": 数値}
@@ -168,6 +177,7 @@ module Ocr
       data = JSON.parse(content, symbolize_names: true)
 
       {
+        vendor_name: data[:vendor_name],
         vendor_address: data[:vendor_address],
         items: normalize_items(data[:items] || []),
         total_amount_excl_tax: data[:total_amount_excl_tax],
