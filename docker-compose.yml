@@ -8,6 +8,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-vibepassword}
       MYSQL_ALLOW_EMPTY_PASSWORD: "no"
+      TZ: Asia/Tokyo
     ports:
       - "3306:3306"
     volumes:
@@ -28,6 +29,7 @@ services:
       dockerfile: Dockerfile.mysql
     container_name: vibe_rails
     environment:
+      - TZ=Asia/Tokyo
       - RAILS_ENV=${RAILS_ENV:-development}
       - DATABASE_URL=mysql2://root:${MYSQL_ROOT_PASSWORD:-vibepassword}@mysql:3306/vibe_rails
       # Kintone integration

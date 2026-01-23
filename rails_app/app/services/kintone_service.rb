@@ -244,7 +244,7 @@ class KintoneService
       FIELD_MAPPING[:split_parts_min] => { value: split[:parts_min] || 0 },
       FIELD_MAPPING[:split_labor_min] => { value: split[:labor_min] || 0 },
       FIELD_MAPPING[:split_total] => { value: split[:total] || 0 },
-      FIELD_MAPPING[:comparison_date] => { value: Date.today.strftime("%Y-%m-%d") },
+      FIELD_MAPPING[:comparison_date] => { value: Date.current.strftime("%Y-%m-%d") },
       FIELD_MAPPING[:notes] => {
         value: generate_notes(item_name_norm, single, split)
       }
