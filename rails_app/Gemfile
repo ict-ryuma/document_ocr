@@ -39,7 +39,7 @@ gem "ruby-openai", "~> 7.0"
 gem "httparty", "~> 0.22"
 
 # Google Cloud Document AI for OCR fallback
-gem "google-cloud-document_ai", "~> 1.0"
+gem "google-cloud-document_ai", "~> 2.0"
 
 # Image processing for PDF to image conversion
 gem "mini_magick", "~> 4.12"
