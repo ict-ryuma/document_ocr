@@ -42,7 +42,7 @@ gem "httparty", "~> 0.22"
 gem "google-cloud-document_ai", "~> 1.0"
 
 # Image processing for PDF to image conversion
-gem "mini_magick", "~> 4.12"
+gem "mini_magick", "~> 5.3"
 
 # Hotwire: Turbo and Stimulus
 gem "turbo-rails"
