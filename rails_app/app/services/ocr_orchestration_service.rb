@@ -68,7 +68,7 @@ class OcrOrchestrationService
     if @document_ai_adapter.available?
       Rails.logger.info "[OcrOrchestration] Stage 1: Document AI extraction"
       begin
-        return @document_ai_adapter.extract(file_path)
+        @document_ai_adapter.extract(file_path)
       rescue Ocr::BaseAdapter::ExtractionError,
              Ocr::BaseAdapter::TimeoutError,
              Ocr::BaseAdapter::ConfigurationError => e
@@ -76,13 +76,14 @@ class OcrOrchestrationService
         # Fallback to dummy for development
         if Rails.env.development? || Rails.env.test?
           Rails.logger.info "[OcrOrchestration] Falling back to Dummy adapter"
-          return @dummy_adapter.extract(file_path)
+          @dummy_adapter.extract(file_path)
+        else
+          raise ExtractionFailedError, "Document AI extraction failed: #{e.message}"
         end
-        raise ExtractionFailedError, "Document AI extraction failed: #{e.message}"
       end
     elsif Rails.env.development? || Rails.env.test?
       Rails.logger.info "[OcrOrchestration] Stage 1: Using Dummy adapter (Document AI not available)"
-      return @dummy_adapter.extract(file_path)
+      @dummy_adapter.extract(file_path)
     else
       raise ExtractionFailedError, "Document AI is not configured"
     end
@@ -92,17 +93,17 @@ class OcrOrchestrationService
     if @gpt_text_adapter.available?
       Rails.logger.info "[OcrOrchestration] Stage 2: GPT-4o Text enhancement"
       begin
-        return @gpt_text_adapter.enhance(raw_result)
+        @gpt_text_adapter.enhance(raw_result)
       rescue Ocr::BaseAdapter::ExtractionError,
              Ocr::BaseAdapter::TimeoutError,
              Ocr::BaseAdapter::ConfigurationError => e
         Rails.logger.warn "[OcrOrchestration] GPT enhancement failed: #{e.message}, using raw result"
         # Continue with raw result if GPT fails
-        return raw_result.merge(validation_warnings: ["GPT enhancement skipped: #{e.message}"])
+        raw_result.merge(validation_warnings: [ "GPT enhancement skipped: #{e.message}" ])
       end
     else
       Rails.logger.info "[OcrOrchestration] Stage 2: Skipping GPT enhancement (not configured)"
-      return raw_result.merge(validation_warnings: ["GPT enhancement not available"])
+      raw_result.merge(validation_warnings: [ "GPT enhancement not available" ])
     end
   end
 
