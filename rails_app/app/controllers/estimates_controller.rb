@@ -60,7 +60,7 @@ class EstimatesController < ApplicationController
       # Render review page (edit mode) - DO NOT save to database yet
       # @parsed_data is passed to view via instance variable, not session
       render :review
-    rescue OcrOrchestrationService::AllAdaptersFailedError => e
+    rescue OcrOrchestrationService::ExtractionFailedError, OcrOrchestrationService::EnhancementFailedError => e
       flash[:error] = "PDF解析エラー: #{e.message}"
       redirect_to new_estimate_path
     rescue => e
@@ -213,7 +213,7 @@ class EstimatesController < ApplicationController
     begin
       orchestrator = OcrOrchestrationService.new
       parsed_data = orchestrator.extract(pdf_path, vendor_name: params[:vendor_name])
-    rescue OcrOrchestrationService::AllAdaptersFailedError => e
+    rescue OcrOrchestrationService::ExtractionFailedError, OcrOrchestrationService::EnhancementFailedError => e
       return render json: { error: "PDF parsing failed: #{e.message}" }, status: :internal_server_error
     end
 
@@ -297,7 +297,7 @@ class EstimatesController < ApplicationController
       else
         render json: { error: estimate.errors.full_messages }, status: :unprocessable_entity
       end
-    rescue OcrOrchestrationService::AllAdaptersFailedError => e
+    rescue OcrOrchestrationService::ExtractionFailedError, OcrOrchestrationService::EnhancementFailedError => e
       render json: { error: "PDF parsing failed: #{e.message}" }, status: :internal_server_error
     ensure
       temp_file.close

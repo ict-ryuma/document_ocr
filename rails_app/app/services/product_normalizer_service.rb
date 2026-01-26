@@ -78,7 +78,8 @@ class ProductNormalizerService
     # @return [Array<Hash>] Items with item_name_norm and cost_type added
     def process_items(items)
       items.map do |item|
-        raw_name = item[:item_name_raw]
+        # Prefer GPT-corrected name if available, otherwise use raw name
+        raw_name = item[:item_name_corrected].presence || item[:item_name_raw]
         item.merge(
           item_name_norm: normalize(raw_name),
           cost_type: determine_cost_type(raw_name)

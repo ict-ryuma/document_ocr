@@ -1,6 +1,21 @@
-# Python PDF Parser Engine
+# Python PDF Parser Engine (Legacy/Stub)
 
-Stateless PDF parser for automotive estimate PDFs.
+> **Note**: このエンジンはMVP用のスタブです。  
+> 本番環境では、Rails内の `OcrOrchestrationService` がDocument AI → GPT-4o Textのパイプラインを管理します。
+
+## 現在のアーキテクチャ
+
+```
+PDF
+ -> Document AI（事実・構造）
+ -> GPT-4o Text（意味補完・例外吸収）
+ -> Rails（検証・人確認）
+```
+
+## このエンジンの役割
+
+- ローカル開発/テスト用のスタブ
+- Railsサービスが利用できない場合のフォールバック
 
 ## Responsibilities
 

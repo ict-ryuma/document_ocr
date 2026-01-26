@@ -56,6 +56,27 @@ class ProductNormalizerServiceTest < ActiveSupport::TestCase
     assert_equal "labor", result[1][:cost_type]
   end
 
+  test "process_items prefers item_name_corrected over item_name_raw" do
+    items = [
+      { item_name_raw: "ワイパ一ブレ一ド", item_name_corrected: "ワイパーブレード", amount_excl_tax: 3000 }
+    ]
+
+    result = ProductNormalizerService.process_items(items)
+
+    assert_equal "wiper_blade", result[0][:item_name_norm]
+    assert_equal "parts", result[0][:cost_type]
+  end
+
+  test "process_items falls back to item_name_raw when item_name_corrected is nil" do
+    items = [
+      { item_name_raw: "エンジンオイル", item_name_corrected: nil, amount_excl_tax: 5000 }
+    ]
+
+    result = ProductNormalizerService.process_items(items)
+
+    assert_equal "engine_oil", result[0][:item_name_norm]
+  end
+
   test "extract_quantity returns 1 for no quantity pattern" do
     assert_equal 1, ProductNormalizerService.extract_quantity("エンジンオイル")
   end
