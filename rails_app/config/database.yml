@@ -3,19 +3,24 @@ default: &default
   adapter: mysql2
   encoding: utf8mb4
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  username: <%= ENV['DATABASE_USERNAME'] || 'root' %>
-  password: <%= ENV['DATABASE_PASSWORD'] || 'vibepassword' %>
-  host: <%= ENV['DATABASE_HOST'] || 'mysql' %>
+  host: <%= ENV.fetch("DATABASE_HOST", "mysql") %>
   port: 3306
 
 development:
   <<: *default
   database: vibe_rails_development
+  username: <%= ENV.fetch("DATABASE_USERNAME", "root") %>
+  password: <%= ENV["DATABASE_PASSWORD"] %>
 
 test:
   <<: *default
   database: vibe_rails_test
+  username: <%= ENV.fetch("DATABASE_USERNAME", "root") %>
+  password: <%= ENV["DATABASE_PASSWORD"] %>
 
 production:
   <<: *default
-  database: vibe_rails
+  database: <%= ENV.fetch("DATABASE_NAME", "vibe_rails") %>
+  username: <%= ENV.fetch("DATABASE_USERNAME", "root") %>
+  password: <%= ENV["DATABASE_PASSWORD"] %>
+  # NOTE: In production, prefer DATABASE_URL which takes precedence over these settings

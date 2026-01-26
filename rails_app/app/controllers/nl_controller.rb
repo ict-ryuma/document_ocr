@@ -4,14 +4,14 @@ class NlController < ApplicationController
     query_text = params[:q]
 
     if query_text.blank?
-      return render json: { error: 'q parameter is required' }, status: :bad_request
+      return render json: { error: "q parameter is required" }, status: :bad_request
     end
 
     # Simple rule-based mapping (no LLM for MVP)
     item_name = extract_item_name(query_text)
 
-    if item_name.nil? || !query_text.include?('一番安い')
-      return render json: { error: 'unsupported query' }, status: :bad_request
+    if item_name.nil? || !query_text.include?("一番安い")
+      return render json: { error: "unsupported query" }, status: :bad_request
     end
 
     # Delegate to recommendations logic
@@ -32,7 +32,7 @@ class NlController < ApplicationController
   def extract_item_name(text)
     # Simple keyword matching for MVP
     if text =~ /(ワイパー|wiper|ブレード|blade)/i
-      return 'wiper_blade'
+      return "wiper_blade"
     end
 
     nil

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_22_003317) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_22_092444) do
   create_table "estimate_items", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.integer "amount_excl_tax"
     t.string "cost_type"
@@ -29,6 +29,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_22_003317) do
     t.text "ai_analysis", comment: "Azure OpenAI分析結果（JSON形式）"
     t.datetime "created_at", null: false
     t.date "estimate_date"
+    t.integer "estimate_items_count", default: 0, null: false
     t.string "kintone_record_id", comment: "kintoneレコードID"
     t.integer "total_excl_tax"
     t.integer "total_incl_tax"

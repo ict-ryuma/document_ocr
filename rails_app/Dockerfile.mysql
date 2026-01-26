@@ -7,7 +7,7 @@ FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 # Rails app lives here
 WORKDIR /rails
 
-# Install base packages including MySQL client libraries
+# Install base packages including MySQL client libraries, PDF tools, and ImageMagick
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
     curl \
@@ -16,8 +16,14 @@ RUN apt-get update -qq && \
     libjemalloc2 \
     libvips \
     libyaml-0-2 \
+    poppler-utils \
+    imagemagick \
+    ghostscript \
     && ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
+
+# Configure ImageMagick policy to allow PDF processing
+RUN sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/' /etc/ImageMagick-6/policy.xml || true
 
 # Set environment variables
 ENV RAILS_ENV="development" \

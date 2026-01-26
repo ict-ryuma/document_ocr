@@ -7,10 +7,11 @@ class Estimate < ApplicationRecord
   validates :total_incl_tax, presence: true, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 
   def items_count
-    estimate_items.count
+    # Use counter cache column for optimal performance
+    estimate_items_count
   end
 
   def as_json(options = {})
-    super(options.merge(methods: [:items_count]))
+    super(options.merge(methods: [ :items_count ]))
   end
 end

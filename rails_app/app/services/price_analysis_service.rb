@@ -1,19 +1,19 @@
-require 'openai'
+require "openai"
 
 class PriceAnalysisService
   class AnalysisError < StandardError; end
 
   def initialize
-    @deployment = ENV['AZURE_DEPLOYMENT_NAME'] || 'gpt-4o'
-    @api_version = ENV['AZURE_API_VERSION'] || '2024-12-01-preview'
+    @deployment = ENV["AZURE_DEPLOYMENT_NAME"] || "gpt-4o"
+    @api_version = ENV["AZURE_API_VERSION"] || "2024-12-01-preview"
 
     # エンドポイントの末尾スラッシュ対策とデプロイメントを含む完全なパスの構築
-    base_url = ENV['AZURE_OPENAI_ENDPOINT'].to_s.sub(/\/$/, '')
+    base_url = ENV["AZURE_OPENAI_ENDPOINT"].to_s.sub(/\/$/, "")
     @uri_base = "#{base_url}/openai/deployments/#{@deployment}"
 
     # Azure OpenAI用のクライアント設定
     @client = OpenAI::Client.new(
-      access_token: ENV['AZURE_OPENAI_API_KEY'],
+      access_token: ENV["AZURE_OPENAI_API_KEY"],
       uri_base: @uri_base,
       api_type: :azure,
       api_version: @api_version,

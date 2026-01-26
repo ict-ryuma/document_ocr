@@ -51,7 +51,7 @@
                 <!-- Items Count -->
                 <td class="px-6 py-4 whitespace-nowrap text-center">
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                    <%= estimate.estimate_items.count %>件
+                    <%= estimate.items_count %>件
                   </span>
                 </td>
 
@@ -100,7 +100,7 @@
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <p class="text-sm text-gray-500">総明細数</p>
         <p class="text-2xl font-bold text-blue-600 mt-2">
-          <%= @estimates.sum { |e| e.estimate_items.count } %>件
+          <%= @estimates.sum(&:items_count) %>件
         </p>
       </div>
     </div>

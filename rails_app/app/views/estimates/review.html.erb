@@ -74,6 +74,7 @@
                   <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">数量</th>
                   <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">金額（税抜）</th>
                   <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">種別</th>
+                  <th class="px-3 py-2 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">非課税</th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200" id="items-tbody">
@@ -101,10 +102,17 @@
                       <%= select_tag "items[][cost_type]", options_for_select([
                             ["部品", "parts"],
                             ["技術料", "labor"],
+                            ["法定費用", "statutory_fees"],
                             ["その他", "other"],
                             ["不明", "unknown"]
                           ], item[:cost_type]),
                           class: "px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-sm" %>
+                    </td>
+                    <td class="px-3 py-2 text-center">
+                      <% is_tax_exempt = item[:cost_type] == 'statutory_fees' %>
+                      <%= check_box_tag "items[][tax_exempt]", "1", is_tax_exempt,
+                          class: "item-tax-exempt w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2" %>
+                      <%= hidden_field_tag "items[][tax_exempt_hidden]", "0" %>
                     </td>
                   </tr>
                 <% end %>
@@ -174,6 +182,7 @@
       <li>左の元データと照らし合わせて、品名が正しく抽出されているか確認</li>
       <li>業者の住所が正確に抽出されているか確認（自社住所ではないこと）</li>
       <li>数量と金額が正確か確認</li>
+      <li><strong>【重要】</strong> 法定費用や非課税項目がある場合は「非課税」チェックボックスをONにしてください（自動的に消費税計算から除外されます）</li>
       <li>合計金額（税抜・税込）が見積書の記載と一致しているか確認</li>
       <li>修正完了後、用途に応じて「保存のみ」または「保存してKintoneに登録」をクリック</li>
     </ul>
@@ -181,42 +190,73 @@
 </div>
 
 <script>
-  // Excel-like auto-calculation: Update totals in real-time as user edits line items
+  // Advanced tax calculation: Handles taxable and non-taxable items separately
   document.addEventListener('DOMContentLoaded', () => {
     const itemsTable = document.getElementById('items-tbody');
     const totalExclTaxField = document.getElementById('total-excl-tax');
     const totalInclTaxField = document.getElementById('total-incl-tax');
 
-    // Recalculate totals instantly when quantity or amount changes
+    // Recalculate totals instantly when quantity, amount, or tax-exempt checkbox changes
     itemsTable.addEventListener('input', (e) => {
-      if (e.target.classList.contains('item-quantity') || e.target.classList.contains('item-amount')) {
+      if (e.target.classList.contains('item-quantity') ||
+          e.target.classList.contains('item-amount')) {
         recalculateTotals();
       }
     });
 
-    // Calculate subtotal from all line items and update total fields
+    // Listen to checkbox changes (using 'change' event for checkboxes)
+    itemsTable.addEventListener('change', (e) => {
+      if (e.target.classList.contains('item-tax-exempt')) {
+        recalculateTotals();
+      }
+    });
+
+    /**
+     * Calculate totals with tax-aware logic
+     *
+     * Formula:
+     * 1. For each row: rowTotal = amount × quantity
+     * 2. If tax-exempt checkbox is ON: nonTaxableSum += rowTotal
+     *    If tax-exempt checkbox is OFF: taxableSum += rowTotal
+     * 3. Total Excl Tax = taxableSum + nonTaxableSum
+     * 4. Total Incl Tax = Math.floor(taxableSum × 1.1) + nonTaxableSum
+     *    (Only apply 10% tax to taxable items, floor the result, then add non-taxable)
+     */
     function recalculateTotals() {
       const rows = itemsTable.querySelectorAll('tr');
-      let subtotal = 0;
+      let taxableSum = 0;      // 課税対象の合計
+      let nonTaxableSum = 0;   // 非課税の合計
 
       rows.forEach(row => {
         const amountField = row.querySelector('.item-amount');
         const quantityField = row.querySelector('.item-quantity');
+        const taxExemptCheckbox = row.querySelector('.item-tax-exempt');
 
         if (amountField && quantityField) {
           const amount = parseFloat(amountField.value) || 0;
           const quantity = parseFloat(quantityField.value) || 1;
-          // Each row contributes: amount * quantity
-          subtotal += (amount * quantity);
+          const rowTotal = amount * quantity;
+
+          // Check if this row is tax-exempt
+          if (taxExemptCheckbox && taxExemptCheckbox.checked) {
+            // Non-taxable item (e.g., statutory fees)
+            nonTaxableSum += rowTotal;
+          } else {
+            // Taxable item (parts, labor, etc.)
+            taxableSum += rowTotal;
+          }
         }
       });
 
-      // Update totals immediately without confirmation
-      // Total Excl Tax = Subtotal
-      totalExclTaxField.value = Math.round(subtotal);
+      // Total Excl Tax = Sum of all items (both taxable and non-taxable)
+      const totalExclTax = taxableSum + nonTaxableSum;
+      totalExclTaxField.value = Math.round(totalExclTax);
 
-      // Total Incl Tax = Subtotal * 1.1 (10% consumption tax)
-      totalInclTaxField.value = Math.floor(subtotal * 1.1);
+      // Total Incl Tax = (Taxable items × 1.1) + Non-taxable items
+      // Apply 10% consumption tax only to taxable items, floor the result, then add non-taxable
+      const taxAmount = Math.floor(taxableSum * 1.1);
+      const totalInclTax = taxAmount + nonTaxableSum;
+      totalInclTaxField.value = Math.round(totalInclTax);
     }
 
     // Run calculation on page load to sync AI-extracted values with line items

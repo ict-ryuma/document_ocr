@@ -3,6 +3,11 @@ class EstimatePriceQuery
     @item_name_norm = item_name_norm
   end
 
+  # Alias for compatibility with controllers calling .execute
+  def execute
+    call
+  end
+
   def call
     items = EstimateItem.where(item_name_norm: @item_name_norm)
     return { error: "No items found for #{@item_name_norm}" } if items.empty?
@@ -39,8 +44,8 @@ class EstimatePriceQuery
   end
 
   def calculate_split_best(items)
-    parts_items = items.where(cost_type: 'parts')
-    labor_items = items.where(cost_type: 'labor')
+    parts_items = items.where(cost_type: "parts")
+    labor_items = items.where(cost_type: "labor")
 
     parts_min = parts_items.minimum(:amount_excl_tax) || 0
     labor_min = labor_items.minimum(:amount_excl_tax) || 0
