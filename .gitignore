@@ -32,3 +32,5 @@ secret-key.json
 final-key.json
 .env.example
 WEB_UI_IMPLEMENTATION_SUMMARY.md
+rails_app/credentials/google_service_account.json
+config/master.key
