@@ -3,90 +3,76 @@
 require "openai"
 
 module Ocr
-  # Primary OCR adapter using Azure OpenAI GPT-4o Vision API
-  # Provides high-quality visual analysis of invoice/estimate documents
+  # GPT-4o Vision adapter - 最強プロンプト（最終決定版）
   class GptVisionAdapter < BaseAdapter
+    # 🔥 最強プロンプト（シンプルイズベスト版）
+    # 余計な思考プロセスを全廃し、視覚的な抽出のみに特化
     SYSTEM_PROMPT = <<~PROMPT
-      あなたは、自動車整備の見積書を視覚的に解析するプロフェッショナルAIです。
-      画像を見て、表形式の明細行と合計金額を読み取り、構造化データに変換してください。
+      あなたは画像内の文字を忠実に読み取るOCR AIです。
+      以下のルールを【絶対厳守】してください。
 
-      # 抽出ルール
-      1. **視覚的な表構造の認識**:
-         - 画像内の表（テーブル）を視覚的に認識してください
-         - 各行は1つの明細アイテムを表します
-         - 列: 品名、数量、単価、金額などを識別
+      # 🚫 禁止事項
+      1. **計算禁止**: 足し算、引き算、消費税の計算は一切禁止。
+      2. **推測禁止**: 「たぶんこうだろう」という補正は禁止。
+      3. **省略禁止**: 明細が何行あっても「以下省略」は禁止。
 
-      2. **品名の抽出**:
-         - 純粋な日本語の品名を抽出（記号、部品番号は除外）
-         - 例: 「#バッテリー」→「バッテリー」
-         - 例: 「76470-72M01 ワイパーラバー」→「ワイパーラバー」
+      # 👁️ 抽出ルール
 
-      3. **金額の抽出**:
-         - 「金額」または「単価」列の数値を抽出
-         - カンマ区切り（1,000）を数値化（1000）
+      ## 1. 合計金額 (total_amount_incl_tax)
+      - 画像内の「御見積金額」「概算御見積金額」「お支払い金額」というラベルを探す。
+      - その【真横】か【直下】にある数値を、そのまま抜き出す。
+      - 例: ラベルの横に「133,934」があれば、明細の合計がいくらであろうと「133934」を出力する。
+      - **管理番号（8桁以上でカンマなし）は無視する**
 
-      4. **集計行の除外**:
-         - 明細表内の「小計」行は items に含めない
+      ## 1-2. 税抜合計金額 (total_amount_excl_tax)
+      - 画像内の「税抜合計」「合計（税抜）」「小計」「税抜金額」というラベルを探す。
+      - その【真横】か【直下】にある数値を、そのまま抜き出す。
+      - 例: ラベルの横に「124,030」があれば、明細の合計がいくらであろうと「124030」を出力する。
+      - **見つからない場合のみnullを返す。絶対に計算で求めてはいけない。**
 
-      5. **業者名の抽出**:
-         - 見積書の発行元（工場・業者）の名前を `vendor_name` として抽出してください
-         - 通常、見積書の上部または左上に記載されている会社名・店舗名
-         - 例: 「株式会社○○自動車」「○○モータース」「○○整備工場」
-         - **除外ルール**: 以下は請求先（自社）なので抽出しないこと
-           - 「株式会社IDOM」
-         - 業者名が見つからない場合は null を返す
+      ## 2. 業者名 (vendor_name)
+      - 用紙の一番上にあるロゴや、最も大きな文字で書かれた会社名を抽出する。
+      - 住所の近くにある会社名も候補とする。
+      - 絶対に「test」や「不明」で逃げないこと。
 
-      6. **業者住所の抽出**:
-         - 見積書の発行元（工場・業者）の住所を `vendor_address` として抽出してください
-         - **除外ルール**: 以下は請求先（自社）の住所なので抽出しないこと
-           - 「東京都渋谷区神南1-19-4」
-           - 「株式会社IDOM」の住所
-         - 通常、見積書の上部または左上に記載されている発行元の住所を抽出
-         - 住所が見つからない場合は null を返す
+      ## 3. 明細行 (items)
+      - 表の中身だけでなく、右側の「諸費用」「法定費用」枠も明細として扱う。
+      - 品名は記号（#）や型番を含めて、印字通りに出力する。
+      - 「重量税」「自賠責」「印紙」は必ず抽出する。
+      - 金額が空欄の行は無視する。
+      - **金額は「部品代」または「技術料」の列にある数値を優先的に読み取る。**
 
-      7. **【最重要】合計金額の厳格な分類**:
-         見積書の最下部にある金額を正確に分類してください。以下の優先順位で判断すること。
+      ## 4. cost_type の分類
+      - **statutory_fees**: 「自賠責」「重量税」「印紙」「法定」「検査登録」「リサイクル」を含む
+      - **labor**: 「工賃」「作業」「技術料」「整備」「点検」を含む
+      - **parts**: 「オイル」「バッテリー」「タイヤ」「ワイパー」「フィルター」「ブレーキ」を含む
+      - **other**: 上記以外
 
-         **A. `total_amount_incl_tax`（税込合計 = 最終支払金額）**:
-         - これは **Grand Total（お客様が実際に支払う最終金額）** です
-         - ラベル例: 「総合計」「合計（税込）」「お支払額」「Grand Total」
-         - **見積書の一番下に大きく強調されている金額**
-         - 消費税が既に含まれている最終的な数字
-         - **もし金額が1つしか強調表示されていない場合、それは税込合計として扱う**
-
-         **B. `total_amount_excl_tax`（税抜合計 = 小計）**:
-         - これは **Subtotal（消費税や諸費用が加算される前の中間金額）** です
-         - ラベル例: 「小計」「合計（税抜）」「対象額」「Subtotal」
-         - **部品代 + 技術料の合計（消費税は含まない）**
-         - Grand Totalより小さい金額
-         - この金額に消費税を足すとGrand Totalになる
-
-         **判断ルール**:
-         1. 見積書に2つの合計金額がある場合:
-            - 小さい方 → `total_amount_excl_tax`（税抜）
-            - 大きい方 → `total_amount_incl_tax`（税込）
-         2. 見積書に1つしか合計金額がない場合:
-            - その金額 → `total_amount_incl_tax`（税込）
-            - `total_amount_excl_tax` → null
-         3. 「消費税」という行がある場合:
-            - その直前の金額 → `total_amount_excl_tax`（税抜）
-            - その直後の金額 → `total_amount_incl_tax`（税込）
-
-      8. **出力フォーマット**:
-         {
-           "vendor_name": "業者名" or null,
-           "vendor_address": "業者の住所" or null,
-           "items": [
-             {"item_name_raw": "品名", "amount_excl_tax": 数値, "quantity": 数値}
-           ],
-           "total_amount_excl_tax": 数値 or null（税抜小計）,
-           "total_amount_incl_tax": 数値（税込合計 = 最終支払金額）
-         }
-
-      JSONのみを返してください。
+      # 📤 出力形式
+      JSONのみを出力してください。説明文、コメント、マークダウンブロックは一切不要です。
     PROMPT
 
-    USER_PROMPT = "この見積書の画像を視覚的に解析してください。業者の住所、表形式の明細行（品名、数量、金額）、フッターにある合計金額（税抜・税込）を読み取り、JSON形式で出力してください。"
+    USER_PROMPT = <<~PROMPT
+      この見積書画像を解析し、以下のJSON形式で出力してください。
+
+      {
+        "vendor_name": "会社名（画像上部の最も大きな文字）",
+        "vendor_address": "住所",
+        "estimate_date": "YYYY-MM-DD",
+        "total_amount_incl_tax": 数値（「御見積金額」ラベルの真横の数値、計算禁止）,
+        "total_amount_excl_tax": 数値（「税抜合計」の数値、なければnull）,
+        "items": [
+          {
+            "item_name_raw": "品名（印字通り、記号・型番含む）",
+            "quantity": 数値,
+            "amount_excl_tax": 数値,
+            "cost_type": "statutory_fees|labor|parts|other"
+          }
+        ]
+      }
+
+      JSONのみを出力してください。
+    PROMPT
 
     def initialize
       @config = Rails.application.config.ocr.azure
@@ -94,107 +80,208 @@ module Ocr
       @client = build_client if available?
     end
 
+    # Extract data from PDF/image file using GPT-4o Vision
+    #
+    # @param file_path [String] Path to PDF or image file
+    # @return [Hash] Extracted data with structure defined in BaseAdapter
+    # @raise [ExtractionError] if extraction fails
+    # @raise [TimeoutError] if API call times out
     def extract(file_path)
-      validate_file!(file_path)
-      log_extraction_start(file_path)
-
-      unless @client
-        raise ConfigurationError, "Azure OpenAI client not configured"
+      unless available?
+        raise ConfigurationError, "Azure OpenAI Vision API is not configured"
       end
 
-      # Convert file to base64 image
-      converter = PdfConverterService.new
-      image_base64 = converter.convert_to_base64(file_path)
+      Rails.logger.info "[GptVision] Starting extraction: #{File.basename(file_path)}"
 
-      unless image_base64
-        raise ExtractionError, "Failed to convert file to base64 image"
+      # Convert PDF to image if necessary
+      image_path = ensure_image_format(file_path)
+
+      # Analyze image with GPT-4o Vision
+      raw_result = analyze_image(image_path)
+
+      unless raw_result
+        raise ExtractionError, "Failed to extract data from image"
       end
 
-      # Call Vision API
-      result = call_vision_api(image_base64)
+      # Normalize result to BaseAdapter format
+      result = normalize_result(raw_result)
 
-      log_extraction_success(result[:items]&.size || 0)
+      Rails.logger.info "[GptVision] Extraction successful: #{result[:items]&.size || 0} items extracted"
+      Rails.logger.info "[GptVision] Vendor: #{result[:vendor_name] || 'unknown'}"
+      Rails.logger.info "[GptVision] Total (excl tax): #{result[:total_amount_excl_tax]}"
+      Rails.logger.info "[GptVision] Total (incl tax): #{result[:total_amount_incl_tax]}"
+
       result
-    rescue Faraday::TimeoutError, Net::ReadTimeout => e
-      log_extraction_failure(e)
-      raise TimeoutError, "Vision API request timed out: #{e.message}"
-    rescue StandardError => e
-      log_extraction_failure(e)
-      raise ExtractionError, "Vision API extraction failed: #{e.message}"
+    rescue Timeout::Error => e
+      Rails.logger.error "[GptVision] Timeout: #{e.message}"
+      raise TimeoutError, "GPT Vision API timed out after #{@timeout}ms"
+    rescue => e
+      Rails.logger.error "[GptVision] Error: #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
+      raise ExtractionError, "GPT Vision extraction failed: #{e.message}"
     end
 
     def available?
-      @config[:api_key].present? && @config[:endpoint].present?
+      @config[:api_key].present? &&
+        @config[:endpoint].present? &&
+        @config[:deployment_name].present?
     end
 
     private
 
     def build_client
+      # エンドポイントの末尾のスラッシュを除去
       base_url = @config[:endpoint].to_s.sub(%r{/$}, "")
+      # Azure用パスの構築
       uri_base = "#{base_url}/openai/deployments/#{@config[:deployment_name]}"
 
       OpenAI::Client.new(
         access_token: @config[:api_key],
         uri_base: uri_base,
         api_type: :azure,
-        api_version: @config[:api_version],
-        request_timeout: @timeout
+        api_version: @config[:api_version] || "2024-02-15-preview",
+        request_timeout: 120  # 120 seconds hardcoded for safety (GPT-4o Vision requires more time)
       )
     end
 
-    def call_vision_api(image_base64)
+    def analyze_image(image_path)
+      Rails.logger.info "[GptVision] Starting analysis: #{File.basename(image_path)}"
+
+      # Encode image to base64
+      base64_image = encode_image(image_path)
+
+      # Call GPT-4o Vision API
+      # Note: For Azure OpenAI, model parameter is not needed as it's in the URI
       response = @client.chat(
         parameters: {
-          model: @config[:deployment_name],
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: USER_PROMPT },
-                {
-                  type: "image_url",
-                  image_url: { url: "data:image/jpeg;base64,#{image_base64}" }
-                }
-              ]
-            }
+            { role: "user", content: [
+              { type: "text", text: USER_PROMPT },
+              { type: "image_url", image_url: {
+                url: "data:image/jpeg;base64,#{base64_image}"
+              }}
+            ]}
           ],
-          temperature: 0.3,
-          max_tokens: 2000,
+          temperature: 0,  # Deterministic output
+          max_tokens: 10000,  # Allow for large item lists
           response_format: { type: "json_object" }
         }
       )
 
       content = response.dig("choices", 0, "message", "content")
+
       unless content
-        raise ExtractionError, "Empty response from Vision API"
+        Rails.logger.error "[GptVision] Empty response from Azure OpenAI"
+        return nil
       end
 
-      parse_vision_response(content)
+      # Log complete raw response for debugging
+      Rails.logger.info "[GptVision] Raw response (FULL):"
+      Rails.logger.info content
+
+      # Log token usage for optimization
+      usage = response.dig("usage")
+      if usage
+        Rails.logger.info "[GptVision] Token usage - Prompt: #{usage['prompt_tokens']}, Completion: #{usage['completion_tokens']}, Total: #{usage['total_tokens']}"
+      end
+
+      parse_json_response(content)
     end
 
-    def parse_vision_response(content)
-      data = JSON.parse(content, symbolize_names: true)
+    def encode_image(image_path)
+      Base64.strict_encode64(File.read(image_path))
+    end
 
-      {
-        vendor_name: data[:vendor_name],
-        vendor_address: data[:vendor_address],
-        items: normalize_items(data[:items] || []),
-        total_amount_excl_tax: data[:total_amount_excl_tax],
-        total_amount_incl_tax: data[:total_amount_incl_tax]
-      }
+    def parse_json_response(content)
+      return nil unless content
+
+      # Remove markdown code blocks if present
+      json_str = content.gsub(/```json\n?/, '').gsub(/```\n?/, '').strip
+
+      parsed = JSON.parse(json_str, symbolize_names: true)
+
+      Rails.logger.info "[GptVision] Successfully parsed JSON with #{parsed[:items]&.size || 0} items"
+
+      # Detailed validation logging
+      if parsed[:items]&.empty?
+        Rails.logger.warn "[GptVision] Warning: No items extracted from image"
+      end
+
+      if parsed[:vendor_name].blank?
+        Rails.logger.warn "[GptVision] Warning: vendor_name not found"
+      end
+
+      # Log extracted totals for debugging
+      Rails.logger.info "[GptVision] Extracted total_amount_excl_tax: #{parsed[:total_amount_excl_tax].inspect}"
+      Rails.logger.info "[GptVision] Extracted total_amount_incl_tax: #{parsed[:total_amount_incl_tax].inspect}"
+
+      if parsed[:total_amount_incl_tax].to_i == 0
+        Rails.logger.warn "[GptVision] ⚠️  CRITICAL: total_amount_incl_tax is zero or missing!"
+      end
+
+      if parsed[:total_amount_excl_tax].to_i == 0
+        Rails.logger.warn "[GptVision] ⚠️  CRITICAL: total_amount_excl_tax is zero or missing!"
+      end
+
+      parsed
     rescue JSON::ParserError => e
-      raise ExtractionError, "Failed to parse Vision API response: #{e.message}"
+      Rails.logger.error "[GptVision] JSON parse error: #{e.message}"
+      Rails.logger.error "[GptVision] Content was: #{content[0..1000]}"
+      nil
     end
 
-    def normalize_items(items)
-      items.map do |item|
+    def normalize_result(raw_result)
+      items = (raw_result[:items] || []).map do |item|
         {
           item_name_raw: item[:item_name_raw].to_s,
+          item_name_corrected: nil,  # Will be normalized by ProductNormalizerService
           amount_excl_tax: item[:amount_excl_tax].to_i,
-          quantity: (item[:quantity] || 1).to_i
+          quantity: (item[:quantity] || 1).to_i,
+          cost_type: item[:cost_type] || "unknown",
+          confidence: "high"
         }
       end.reject { |item| item[:item_name_raw].blank? || item[:amount_excl_tax] <= 0 }
+
+      {
+        vendor_name: raw_result[:vendor_name],
+        vendor_address: raw_result[:vendor_address],
+        estimate_date: raw_result[:estimate_date],
+        items: items,
+        total_amount_excl_tax: raw_result[:total_amount_excl_tax],
+        total_amount_incl_tax: raw_result[:total_amount_incl_tax],
+        validation_warnings: []
+      }
+    end
+
+    def ensure_image_format(file_path)
+      # If already an image, return as-is
+      return file_path if image_file?(file_path)
+
+      # Convert PDF to image using ImageMagick
+      require "mini_magick"
+
+      output_path = File.join(Dir.tmpdir, "#{SecureRandom.hex(8)}.jpg")
+
+      MiniMagick::Tool::Convert.new do |convert|
+        convert << "#{file_path}[0]"  # First page only
+        convert.density(300)           # Balanced resolution for whole-image understanding
+        convert.quality(95)            # High quality
+        convert.colorspace("RGB")
+        convert.auto_orient            # Auto-rotate based on EXIF orientation
+        convert.sharpen("0x1")         # Sharpen to enhance grid lines and column boundaries
+        convert << output_path
+      end
+
+      output_path
+    rescue => e
+      Rails.logger.warn "[GptVision] PDF conversion failed: #{e.message}, using original file"
+      file_path
+    end
+
+    def image_file?(file_path)
+      extension = File.extname(file_path).downcase
+      %w[.jpg .jpeg .png .gif .bmp].include?(extension)
     end
   end
 end

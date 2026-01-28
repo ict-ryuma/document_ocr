@@ -45,7 +45,7 @@ services:
       - GCP_PROJECT_ID=${GCP_PROJECT_ID:-estimate-ocr-project-467308}
       - DOCUMENT_AI_PROCESSOR_ID=${DOCUMENT_AI_PROCESSOR_ID}
       - DOCUMENT_AI_LOCATION=${DOCUMENT_AI_LOCATION:-us}
-      - GOOGLE_APPLICATION_CREDENTIALS=/rails/config/credentials/gcp-key.json
+      - GOOGLE_APPLICATION_CREDENTIALS=/rails/credentials/google_service_account.json
       # Rails secrets
       - SECRET_KEY_BASE=${RAILS_SECRET_KEY_BASE:-rails-dev-secret}
     ports:
@@ -54,7 +54,6 @@ services:
       - ./rails_app:/rails
       - rails_storage:/rails/storage
       - rails_tmp:/rails/tmp
-      - ./final-key.json:/rails/config/credentials/gcp-key.json:ro
     depends_on:
       mysql:
         condition: service_healthy

@@ -259,8 +259,9 @@
       totalInclTaxField.value = Math.round(totalInclTax);
     }
 
-    // Run calculation on page load to sync AI-extracted values with line items
-    // This ensures the totals always reflect the sum of line items (line items are the master)
-    recalculateTotals();
+    // ✅ ページロード時は再計算しない（OCRの合計金額を保持）
+    // OCRのヘッダー情報（合計金額）は100%正確なため、明細から再計算すると不正確になる
+    // ユーザーが明細を編集した時のみ、上記のイベントリスナーが再計算を実行
+    // recalculateTotals();  // ← コメントアウト
   });
 </script>

@@ -46,6 +46,10 @@ RUN apt-get update -qq && \
 
 # Install application gems
 COPY Gemfile Gemfile.lock ./
+
+# Set PKG_CONFIG_PATH to help psych find libyaml
+ENV PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
+
 RUN bundle install
 
 # Copy application code
