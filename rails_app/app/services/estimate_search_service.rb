@@ -6,8 +6,10 @@
 class EstimateSearchService
   # Search estimates by keyword and/or area
   #
-  # @param keyword [String, nil] Search keyword for item names (e.g., "ワイパー", "ブレーキ")
+  # @param keyword [String, nil] Search keyword for item names, vendor names, or addresses
+  #                              (e.g., "ワイパー", "ブレーキ", "東武スズキ", "埼玉県")
   # @param area [String, nil] Search area for vendor address (e.g., "東京", "大阪")
+  #                           If keyword already contains location info, area can be nil
   # @param limit [Integer] Maximum number of results to return (default: 10)
   # @return [Hash] Search results with structure:
   #   {
@@ -19,14 +21,21 @@ class EstimateSearchService
     Rails.logger.info "[EstimateSearch] Starting search with keyword='#{keyword}', area='#{area}', limit=#{limit}"
 
     # Start with all estimates and their items
-    query = EstimateItem.joins(:estimate)
+    # Use left_outer_joins to include estimates even if they have no items
+    query = Estimate.left_outer_joins(:estimate_items)
 
     # Filter by keyword if provided
+    # Search across: item names, vendor names, AND vendor addresses
     if keyword.present?
       normalized_keyword = normalize_keyword(keyword)
-      query = query.where("estimate_items.item_name_raw LIKE ? OR estimate_items.item_name_norm LIKE ?",
-                          "%#{normalized_keyword}%", "%#{normalized_keyword}%")
-      Rails.logger.info "[EstimateSearch] Applied keyword filter: #{normalized_keyword}"
+      query = query.where(
+        "estimate_items.item_name_raw LIKE ? OR estimate_items.item_name_norm LIKE ? OR estimates.vendor_name LIKE ? OR estimates.vendor_address LIKE ?",
+        "%#{normalized_keyword}%",
+        "%#{normalized_keyword}%",
+        "%#{normalized_keyword}%",
+        "%#{normalized_keyword}%"
+      )
+      Rails.logger.info "[EstimateSearch] Applied keyword filter (items + vendor + address): #{normalized_keyword}"
     end
 
     # Filter by area if provided
@@ -36,26 +45,38 @@ class EstimateSearchService
       Rails.logger.info "[EstimateSearch] Applied area filter: #{normalized_area}"
     end
 
-    # Get total count before limit
-    total_count = query.count
+    # Get total count before limit (count distinct estimates)
+    total_count = query.select("estimates.id").distinct.count
 
     # Order by estimate date (newest first) and limit results
-    items = query.order("estimates.estimate_date DESC, estimates.created_at DESC")
-                 .limit(limit)
-                 .select("estimate_items.*, estimates.vendor_name, estimates.vendor_address, estimates.estimate_date, estimates.id as estimate_id")
+    # Select both estimate and item columns (include created_at for ORDER BY compatibility)
+    records = query.order("estimates.estimate_date DESC, estimates.created_at DESC")
+                   .limit(limit)
+                   .select("estimates.id as estimate_id,
+                            estimates.vendor_name,
+                            estimates.vendor_address,
+                            estimates.estimate_date,
+                            estimates.created_at,
+                            estimate_items.id as item_id,
+                            estimate_items.item_name_raw,
+                            estimate_items.item_name_norm,
+                            estimate_items.cost_type,
+                            estimate_items.amount_excl_tax,
+                            estimate_items.quantity")
+                   .distinct
 
     # Format results
-    results = items.map do |item|
+    results = records.map do |record|
       {
-        vendor_name: item.vendor_name,
-        vendor_address: item.vendor_address,
-        estimate_date: item.estimate_date,
-        item_name: item.item_name_raw,
-        item_name_norm: item.item_name_norm,
-        cost_type: item.cost_type,
-        amount_excl_tax: item.amount_excl_tax,
-        quantity: item.quantity,
-        estimate_id: item.estimate_id
+        vendor_name: record.vendor_name,
+        vendor_address: record.vendor_address,
+        estimate_date: record.estimate_date,
+        item_name: record.item_name_raw,
+        item_name_norm: record.item_name_norm,
+        cost_type: record.cost_type,
+        amount_excl_tax: record.amount_excl_tax,
+        quantity: record.quantity,
+        estimate_id: record.estimate_id
       }
     end
 
