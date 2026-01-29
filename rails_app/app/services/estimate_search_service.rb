@@ -161,6 +161,55 @@ class EstimateSearchService
     }
   end
 
+  # Analyze market price for a specific keyword and area
+  # This is a wrapper around statistics() with more detailed result formatting
+  #
+  # @param keyword [String] Item name keyword (e.g., "ワイパー", "ブレーキパッド")
+  # @param area [String, nil] Area filter (e.g., "東京", "大阪")
+  # @return [Hash] Market analysis with structure:
+  #   {
+  #     success: Boolean,
+  #     keyword: String,
+  #     area: String or nil,
+  #     data_count: Integer,
+  #     average_price: Integer,
+  #     min_price: Integer,
+  #     max_price: Integer,
+  #     vendor_count: Integer,
+  #     message: String
+  #   }
+  def self.analyze_market_price(keyword:, area: nil)
+    Rails.logger.info "[EstimateSearch] Analyzing market price for keyword='#{keyword}', area='#{area}'"
+
+    stats = statistics(keyword: keyword, area: area)
+
+    if stats.nil? || stats[:total_items] == 0
+      return {
+        success: false,
+        keyword: keyword,
+        area: area,
+        data_count: 0,
+        average_price: 0,
+        min_price: 0,
+        max_price: 0,
+        vendor_count: 0,
+        message: "該当するデータが見つかりませんでした。"
+      }
+    end
+
+    {
+      success: true,
+      keyword: keyword,
+      area: area,
+      data_count: stats[:total_items],
+      average_price: stats[:average_price].round,
+      min_price: stats[:min_price],
+      max_price: stats[:max_price],
+      vendor_count: stats[:vendor_count],
+      message: "#{stats[:total_items]}件のデータから相場を分析しました。"
+    }
+  end
+
   private
 
   # Normalize keyword for search (remove spaces, convert katakana variations)

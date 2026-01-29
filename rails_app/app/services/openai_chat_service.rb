@@ -7,23 +7,38 @@ class OpenaiChatService
   class ChatError < StandardError; end
 
   SYSTEM_PROMPT = <<~PROMPT.freeze
-    あなたは「Meister Bot」という名前のAIアシスタントです。
-    自動車整備工場の見積データベースを検索して、ユーザーの質問に答えるのが仕事です。
+    あなたは「Meister Bot」という名前の、自動車整備工場向けDXコンサルタントAIです。
+    見積データベースを活用して、ユーザーの業務を支援するのがあなたの使命です。
 
     【あなたの役割】
-    - ユーザーが「東京でワイパーが安い工場は？」のような質問をしたら、エリアとキーワードを抽出してデータベースを検索する
-    - 検索結果をもとに、わかりやすく回答する
-    - エリアが指定されていない場合は、ユーザーに確認する
+    - ユーザーの曖昧な指示（「東京の工場教えて」「ワイパーの相場は？」など）から、適切な検索や分析を実行する
+    - データを見やすく整形して提示する（**必ずMarkdownの表形式を使用**）
+    - データに基づいた考察やアドバイスを一言添える
+    - 検索結果が0件でも、前向きな提案をする
+
+    【出力形式の厳守】
+    1. **検索結果は必ずMarkdown表形式**で出力する
+       例：
+       | 会社名 | 住所 | 部品名 | 金額 | 日付 |
+       |--------|------|--------|------|------|
+       | A工場 | 東京都... | ワイパー | 3,500円 | 2025-01-15 |
+
+    2. **表の後に必ず考察を1〜2文**添える
+       例：「A社が最安ですが、B社は近場なので配送コストを考えると有力な選択肢です。」
+
+    3. **データがない場合の対応**
+       - 「データがありません」で終わらせない
+       - 「〇〇というキーワードなら見つかるかもしれません」と代替案を提示
 
     【回答のトーン】
-    - フレンドリーで親しみやすい口調（敬語は使わない）
+    - プロフェッショナルだが親しみやすい
     - 簡潔でわかりやすい説明
-    - 例：「東京でワイパーの最安値を見つけたよ！SUZUKI工場で3,500円だね。」
+    - データに基づいた客観的なアドバイス
 
     【制約】
     - データベースにない情報は推測しない
-    - 検索結果が0件の場合は、正直に「見つからなかった」と伝える
     - 個人情報や機密情報は扱わない
+    - 検索関数は必ず1回の応答で1つだけ実行する
   PROMPT
 
   FUNCTION_DEFINITIONS = [
@@ -31,7 +46,7 @@ class OpenaiChatService
       type: "function",
       function: {
         name: "search_estimates",
-        description: "見積データベースをキーワードとエリアで検索します。ユーザーが部品名や作業内容とエリアを指定したら、このfunctionを呼び出してください。",
+        description: "見積データベースをキーワードとエリアで検索します。ユーザーが「〇〇の工場を教えて」「東京で△△を扱っているところは？」のような質問をしたら、このfunctionを呼び出してください。リスト形式で複数の結果を返します。",
         parameters: {
           type: "object",
           properties: {
@@ -42,6 +57,10 @@ class OpenaiChatService
             area: {
               type: "string",
               description: "検索エリア（例：「東京」「大阪」「神奈川」）。ユーザーが指定していない場合は省略可能。"
+            },
+            limit: {
+              type: "integer",
+              description: "取得する最大件数（デフォルト: 10件）"
             }
           },
           required: [ "keyword" ]
@@ -63,6 +82,27 @@ class OpenaiChatService
             area: {
               type: "string",
               description: "検索エリア（例：「東京」「大阪」）。省略可能。"
+            }
+          },
+          required: [ "keyword" ]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "analyze_market_price",
+        description: "特定の部品やサービスの市場価格を分析します。ユーザーが「〇〇の相場は？」「△△の平均価格を教えて」「傾向を知りたい」のような質問をしたら、このfunctionを呼び出してください。平均価格・最高値・最安値・データ件数を返します。",
+        parameters: {
+          type: "object",
+          properties: {
+            keyword: {
+              type: "string",
+              description: "分析対象のキーワード（例：「ワイパー」「ブレーキパッド」「オイル交換」）"
+            },
+            area: {
+              type: "string",
+              description: "分析対象エリア（例：「東京」「大阪」）。省略可能。"
             }
           },
           required: [ "keyword" ]
@@ -257,6 +297,8 @@ class OpenaiChatService
       search_estimates(arguments)
     when "find_cheapest_vendor"
       find_cheapest_vendor(arguments)
+    when "analyze_market_price"
+      analyze_market_price(arguments)
     else
       Rails.logger.warn "[OpenaiChat] Unknown function: #{function_name}"
       { error: "Unknown function" }
@@ -266,28 +308,34 @@ class OpenaiChatService
   def search_estimates(args)
     keyword = args["keyword"]
     area = args["area"]
+    limit = args["limit"] || 10
 
-    Rails.logger.info "[OpenaiChat] Searching estimates: keyword='#{keyword}', area='#{area}'"
+    Rails.logger.info "[OpenaiChat] Searching estimates: keyword='#{keyword}', area='#{area}', limit=#{limit}"
 
-    result = EstimateSearchService.search(keyword: keyword, area: area, limit: 10)
+    result = EstimateSearchService.search(keyword: keyword, area: area, limit: limit)
 
     # Format results for GPT
     if result[:results].empty?
       {
-        success: true,
+        success: false,
         message: "検索結果が見つかりませんでした。",
+        keyword: keyword,
+        area: area,
         results: []
       }
     else
       {
         success: true,
-        message: "#{result[:total_count]}件の結果が見つかりました（上位10件を表示）。",
+        message: "#{result[:total_count]}件の結果が見つかりました（上位#{result[:results].size}件を表示）。",
+        keyword: keyword,
+        area: area,
+        total_count: result[:total_count],
         results: result[:results].map do |r|
           {
             vendor_name: r[:vendor_name],
             vendor_address: r[:vendor_address],
             item_name: r[:item_name],
-            amount: "#{r[:amount_excl_tax]}円",
+            amount_excl_tax: r[:amount_excl_tax],
             estimate_date: r[:estimate_date]
           }
         end
@@ -310,14 +358,46 @@ class OpenaiChatService
         vendor_name: result[:vendor_name],
         vendor_address: result[:vendor_address],
         item_name: result[:item_name],
-        amount: "#{result[:amount_excl_tax]}円",
+        amount_excl_tax: result[:amount_excl_tax],
         quantity: result[:quantity],
         estimate_date: result[:estimate_date]
       }
     else
       {
         success: false,
-        message: "該当する工場が見つかりませんでした。"
+        message: "該当する工場が見つかりませんでした。",
+        keyword: keyword,
+        area: area
+      }
+    end
+  end
+
+  def analyze_market_price(args)
+    keyword = args["keyword"]
+    area = args["area"]
+
+    Rails.logger.info "[OpenaiChat] Analyzing market price: keyword='#{keyword}', area='#{area}'"
+
+    result = EstimateSearchService.analyze_market_price(keyword: keyword, area: area)
+
+    if result[:success]
+      {
+        success: true,
+        message: result[:message],
+        keyword: result[:keyword],
+        area: result[:area],
+        data_count: result[:data_count],
+        average_price: result[:average_price],
+        min_price: result[:min_price],
+        max_price: result[:max_price],
+        vendor_count: result[:vendor_count]
+      }
+    else
+      {
+        success: false,
+        message: result[:message],
+        keyword: result[:keyword],
+        area: result[:area]
       }
     end
   end

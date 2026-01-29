@@ -12,12 +12,42 @@ class ChatThread < ApplicationRecord
   # 会話履歴をOpenAI形式の配列に変換
   def conversation_history
     chat_messages.order(:created_at).map do |msg|
-      {
-        role: msg.role,
-        content: msg.content
-      }.tap do |hash|
-        # tool_call_id がある場合は追加（Function Calling の応答用）
-        hash[:tool_call_id] = msg.function_name if msg.role == "tool" && msg.function_name.present?
+      case msg.role
+      when "system", "user"
+        # 通常のメッセージ
+        {
+          role: msg.role,
+          content: msg.content
+        }
+      when "assistant"
+        # アシスタントの応答（tool_callsを含む可能性あり）
+        if msg.content.starts_with?("[{")
+          # tool_callsのJSON文字列
+          {
+            role: "assistant",
+            content: nil,
+            tool_calls: JSON.parse(msg.content)
+          }
+        else
+          # 通常のテキスト応答
+          {
+            role: "assistant",
+            content: msg.content
+          }
+        end
+      when "tool"
+        # Function Calling の結果
+        {
+          role: "tool",
+          tool_call_id: msg.function_name,
+          content: msg.content
+        }
+      else
+        # その他
+        {
+          role: msg.role,
+          content: msg.content
+        }
       end
     end
   end
