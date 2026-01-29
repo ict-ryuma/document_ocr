@@ -266,7 +266,7 @@ module Ocr
       return nil unless content
 
       # Remove markdown code blocks if present
-      json_str = content.gsub(/```json\n?/, '').gsub(/```\n?/, '').strip
+      json_str = content.gsub(/```json\n?/, "").gsub(/```\n?/, "").strip
 
       parsed = JSON.parse(json_str, symbolize_names: true)
 

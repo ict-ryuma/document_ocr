@@ -47,8 +47,9 @@ class EstimatesController < ApplicationController
       temp_file.close
 
       # Parse using OCR orchestration service (returns draft data, not saved)
+      # Always use OCR-extracted vendor_name (no manual override)
       orchestrator = OcrOrchestrationService.new
-      @parsed_data = orchestrator.extract(temp_file.path, vendor_name: params[:vendor_name])
+      @parsed_data = orchestrator.extract(temp_file.path)
 
       # Store only small metadata in session (not the large parsed data)
       session[:pdf_filename] = uploaded_file.original_filename
@@ -210,9 +211,10 @@ class EstimatesController < ApplicationController
     end
 
     # Parse PDF using OCR orchestration service
+    # Always use OCR-extracted vendor_name (no manual override)
     begin
       orchestrator = OcrOrchestrationService.new
-      parsed_data = orchestrator.extract(pdf_path, vendor_name: params[:vendor_name])
+      parsed_data = orchestrator.extract(pdf_path)
     rescue OcrOrchestrationService::ExtractionFailedError, OcrOrchestrationService::EnhancementFailedError => e
       return render json: { error: "PDF parsing failed: #{e.message}" }, status: :internal_server_error
     end
@@ -264,8 +266,9 @@ class EstimatesController < ApplicationController
       temp_file.close
 
       # Parse using OCR orchestration service
+      # Always use OCR-extracted vendor_name (no manual override)
       orchestrator = OcrOrchestrationService.new
-      parsed_data = orchestrator.extract(temp_file.path, vendor_name: params[:vendor_name])
+      parsed_data = orchestrator.extract(temp_file.path)
 
       # Create Estimate record
       estimate = Estimate.new(

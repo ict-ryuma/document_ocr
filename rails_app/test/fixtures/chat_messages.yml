@@ -1,0 +1,13 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  chat_thread: one
+  role: MyString
+  content: MyText
+  function_name: MyString
+
+two:
+  chat_thread: two
+  role: MyString
+  content: MyText
+  function_name: MyString
