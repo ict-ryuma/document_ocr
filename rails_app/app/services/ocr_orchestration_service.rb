@@ -29,7 +29,6 @@ class OcrOrchestrationService
   #   3. Fallback to single adapter if one fails
   #
   # @param file_path [String] Path to PDF or image file
-  # @param vendor_name [String, nil] Override vendor name
   # @return [Hash] Extracted and enhanced data with structure:
   #   {
   #     vendor_name: String,
@@ -42,7 +41,7 @@ class OcrOrchestrationService
   #     extraction_method: String
   #   }
   # @raise [ExtractionFailedError] if all extraction methods fail
-  def extract(file_path, vendor_name: nil)
+  def extract(file_path)
     document_ai_result = nil
     gpt_vision_result = nil
 
@@ -76,20 +75,20 @@ class OcrOrchestrationService
     if document_ai_result && gpt_vision_result
       Rails.logger.info "[OcrOrchestration] Merging results: Header from GPT Vision + Items from Document AI"
       merged_result = merge_results(gpt_vision_result, document_ai_result)
-      return build_response(merged_result, vendor_name: vendor_name, method: "Hybrid Merge (Vision Header + DocumentAI Items)")
+      return build_response(merged_result, method: "Hybrid Merge (Vision Header + DocumentAI Items)")
     elsif document_ai_result
       Rails.logger.info "[OcrOrchestration] Using Document AI only (GPT Vision failed)"
-      return build_response(document_ai_result, vendor_name: vendor_name, method: "Document AI Hybrid (solo)")
+      return build_response(document_ai_result, method: "Document AI Hybrid (solo)")
     elsif gpt_vision_result
       Rails.logger.info "[OcrOrchestration] Using GPT Vision only (Document AI failed)"
-      return build_response(gpt_vision_result, vendor_name: vendor_name, method: "GPT-4o Vision (solo)")
+      return build_response(gpt_vision_result, method: "GPT-4o Vision (solo)")
     end
 
     # Fallback to dummy for development
     if Rails.env.development? || Rails.env.test?
       Rails.logger.info "[OcrOrchestration] Using Dummy adapter (all extractors failed)"
       result = @dummy_adapter.extract(file_path)
-      return build_response(result, vendor_name: vendor_name, method: "Dummy (development)")
+      return build_response(result, method: "Dummy (development)")
     end
 
     raise ExtractionFailedError, "All extraction methods failed or unavailable"
@@ -198,7 +197,7 @@ class OcrOrchestrationService
     end
   end
 
-  def build_response(enhanced_result, vendor_name: nil, method: nil)
+  def build_response(enhanced_result, method: nil)
     items = enhanced_result[:items] || []
 
     # Apply normalization to items
@@ -212,7 +211,8 @@ class OcrOrchestrationService
     estimate_date = parse_japanese_date(enhanced_result[:estimate_date])
 
     {
-      vendor_name: vendor_name.presence || enhanced_result[:vendor_name].presence || "Unknown Vendor",
+      # Always use OCR-extracted vendor_name (no manual override)
+      vendor_name: enhanced_result[:vendor_name].presence || "Unknown Vendor",
       vendor_address: enhanced_result[:vendor_address],
       estimate_date: estimate_date,
       total_excl_tax: total_excl_tax,
