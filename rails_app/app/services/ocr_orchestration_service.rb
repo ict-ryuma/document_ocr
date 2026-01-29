@@ -110,20 +110,28 @@ class OcrOrchestrationService
   private
 
   # Merge results from GPT Vision (header) and Document AI (items)
+  # Vision優先だが、Vision値がnil/空の場合はDocument AI値にフォールバック
   #
   # @param vision_result [Hash] GPT-4o Vision extraction result (good at header info)
   # @param docai_result [Hash] Document AI extraction result (good at items)
   # @return [Hash] Merged result with best of both
   def merge_results(vision_result, docai_result)
+    vendor_name = vision_result[:vendor_name].presence || docai_result[:vendor_name]
+    vendor_address = vision_result[:vendor_address].presence || docai_result[:vendor_address]
+    estimate_date = vision_result[:estimate_date].presence || docai_result[:estimate_date]
+    total_excl = vision_result[:total_amount_excl_tax].presence || docai_result[:total_amount_excl_tax]
+    total_incl = vision_result[:total_amount_incl_tax].presence || docai_result[:total_amount_incl_tax]
+
     Rails.logger.info "[OcrOrchestration] Merging: Vision header (#{vision_result[:vendor_name]}, ¥#{vision_result[:total_amount_incl_tax]}) + DocumentAI items (#{docai_result[:items]&.size || 0} items)"
+    Rails.logger.info "[OcrOrchestration] Fallback applied - vendor: #{vendor_name}, total_incl: #{total_incl}, total_excl: #{total_excl}"
 
     {
-      # Header info: from GPT-4o Vision (more accurate for large fonts and labels)
-      vendor_name: vision_result[:vendor_name],
-      vendor_address: vision_result[:vendor_address],
-      estimate_date: vision_result[:estimate_date],
-      total_amount_excl_tax: vision_result[:total_amount_excl_tax],
-      total_amount_incl_tax: vision_result[:total_amount_incl_tax],
+      # Header info: Vision優先、nil時はDocument AIにフォールバック
+      vendor_name: vendor_name,
+      vendor_address: vendor_address,
+      estimate_date: estimate_date,
+      total_amount_excl_tax: total_excl,
+      total_amount_incl_tax: total_incl,
 
       # Body info: from Document AI (more accurate for table structure)
       items: docai_result[:items] || [],

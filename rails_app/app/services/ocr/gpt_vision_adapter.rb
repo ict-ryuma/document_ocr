@@ -19,20 +19,29 @@ module Ocr
       # 👁️ 抽出ルール
 
       ## 1. 合計金額 (total_amount_incl_tax)
-      - 画像内の「御見積金額」「概算御見積金額」「お支払い金額」というラベルを探す。
+      - 画像内の以下のラベルを探す:
+        「御見積金額」「概算御見積金額」「お支払い金額」「合計金額」「請求金額」
+        「ご請求金額」「合計（税込）」「税込合計」「合計」「総合計」
+        「Amount Due」「Total」「Total Amount」「Grand Total」「Balance Due」
       - その【真横】か【直下】にある数値を、そのまま抜き出す。
       - 例: ラベルの横に「133,934」があれば、明細の合計がいくらであろうと「133934」を出力する。
       - **管理番号（8桁以上でカンマなし）は無視する**
+      - 「合計」が複数ある場合、最も大きい金額（税込と思われるもの）を選ぶ。
 
       ## 1-2. 税抜合計金額 (total_amount_excl_tax)
-      - 画像内の「税抜合計」「合計（税抜）」「小計」「税抜金額」というラベルを探す。
+      - 画像内の以下のラベルを探す:
+        「税抜合計」「合計（税抜）」「小計」「税抜金額」「税抜合計金額」
+        「Subtotal」「Sub Total」「Net Amount」「Amount Before Tax」
       - その【真横】か【直下】にある数値を、そのまま抜き出す。
       - 例: ラベルの横に「124,030」があれば、明細の合計がいくらであろうと「124030」を出力する。
       - **見つからない場合のみnullを返す。絶対に計算で求めてはいけない。**
 
       ## 2. 業者名 (vendor_name)
-      - 用紙の一番上にあるロゴや、最も大きな文字で書かれた会社名を抽出する。
+      - 用紙の一番上にあるロゴや、最も大きな文字で書かれた会社名・屋号を抽出する。
       - 住所の近くにある会社名も候補とする。
+      - 「株式会社」「有限会社」「合同会社」等の法人格だけでなく、その前後の社名も必ず含める。
+        例: 「株式会社 ABC」であれば「株式会社ABC」ではなく「株式会社 ABC」全体を抽出する。
+      - 英語の場合は「Company Name」「From」「Bill From」セクションの会社名を抽出する。
       - 絶対に「test」や「不明」で逃げないこと。
 
       ## 3. 明細行 (items)
@@ -159,7 +168,8 @@ module Ocr
             { role: "user", content: [
               { type: "text", text: USER_PROMPT },
               { type: "image_url", image_url: {
-                url: "data:image/jpeg;base64,#{base64_image}"
+                url: "data:image/jpeg;base64,#{base64_image}",
+                detail: "high"
               }}
             ]}
           ],
@@ -264,8 +274,8 @@ module Ocr
       output_path = File.join(Dir.tmpdir, "#{SecureRandom.hex(8)}.jpg")
 
       MiniMagick::Tool::Convert.new do |convert|
+        convert.density(300)           # MUST come before input file for PDF rasterization
         convert << "#{file_path}[0]"  # First page only
-        convert.density(300)           # Balanced resolution for whole-image understanding
         convert.quality(95)            # High quality
         convert.colorspace("RGB")
         convert.auto_orient            # Auto-rotate based on EXIF orientation
