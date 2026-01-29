@@ -36,12 +36,20 @@ module Ocr
       - 例: ラベルの横に「124,030」があれば、明細の合計がいくらであろうと「124030」を出力する。
       - **見つからない場合のみnullを返す。絶対に計算で求めてはいけない。**
 
-      ## 2. 業者名 (vendor_name)
-      - 用紙の一番上にあるロゴや、最も大きな文字で書かれた会社名・屋号を抽出する。
-      - 住所の近くにある会社名も候補とする。
+      ## 2. 業者名 (vendor_name) ← 発行元・差出人の会社名
+      - **「御中」「様」が付いている名前は宛先（お客様）なので絶対に使わない。**
+      - vendor_nameは見積書・請求書を**発行した側**（差出人・売主・業者）の会社名である。
+      - 発行元の特徴:
+        - 住所・電話番号・FAX番号・メールアドレスの近くにある会社名
+        - ロゴの近くにある会社名
+        - 用紙の右上または下部に記載されていることが多い
+      - 宛先（お客様）の特徴（こちらは無視する）:
+        - 「御中」「様」が付いている
+        - 用紙の左上に記載されていることが多い
       - 「株式会社」「有限会社」「合同会社」等の法人格だけでなく、その前後の社名も必ず含める。
-        例: 「株式会社 ABC」であれば「株式会社ABC」ではなく「株式会社 ABC」全体を抽出する。
-      - 英語の場合は「Company Name」「From」「Bill From」セクションの会社名を抽出する。
+        例: 「株式会社 ABC」→「株式会社 ABC」全体を抽出する。
+      - 英語の場合は「From」「Bill From」「Sender」セクションの会社名を抽出する。
+        「To」「Bill To」「Ship To」は宛先なので無視する。
       - 絶対に「test」や「不明」で逃げないこと。
 
       ## 3. 明細行 (items)
@@ -170,8 +178,8 @@ module Ocr
               { type: "image_url", image_url: {
                 url: "data:image/jpeg;base64,#{base64_image}",
                 detail: "high"
-              }}
-            ]}
+              } }
+            ] }
           ],
           temperature: 0,  # Deterministic output
           max_tokens: 10000,  # Allow for large item lists
@@ -207,7 +215,7 @@ module Ocr
       return nil unless content
 
       # Remove markdown code blocks if present
-      json_str = content.gsub(/```json\n?/, '').gsub(/```\n?/, '').strip
+      json_str = content.gsub(/```json\n?/, "").gsub(/```\n?/, "").strip
 
       parsed = JSON.parse(json_str, symbolize_names: true)
 
