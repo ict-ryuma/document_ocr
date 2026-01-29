@@ -1,0 +1,67 @@
+<div class="max-w-4xl mx-auto py-8">
+  <!-- Header -->
+  <div class="bg-white rounded-t-lg shadow-sm border border-gray-200 p-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Meister Bot</h1>
+        <p class="text-sm text-gray-600 mt-1">見積データベースを検索できる対話型AIアシスタント</p>
+      </div>
+      <div>
+        <%= button_to "リセット", reset_chat_path, method: :delete,
+            class: "px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm",
+            data: { turbo_stream: true } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Messages Area -->
+  <div class="bg-gray-50 border-x border-gray-200 p-6" style="height: 500px; overflow-y: auto;">
+    <div id="chat-messages" class="space-y-4">
+      <!-- Welcome message -->
+      <%= render partial: "chats/message", locals: {
+        message: "こんにちは！Meister Botだよ。見積データベースから情報を検索できるよ。\n\n例えば「東京でワイパーが安い工場は？」のように聞いてみてね！",
+        role: "assistant",
+        timestamp: Time.current
+      } %>
+    </div>
+  </div>
+
+  <!-- Input Area -->
+  <div class="bg-white rounded-b-lg shadow-sm border border-gray-200 p-6">
+    <%= form_with url: chat_messages_path, method: :post,
+        data: { turbo_stream: true, controller: "chat-form", action: "submit->chat-form#submit" },
+        class: "flex gap-3" do |form| %>
+
+      <%= form.text_field :message,
+          id: "message-input",
+          placeholder: "メッセージを入力してください（例：東京でブレーキパッドが安い工場は？）",
+          class: "flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+          autocomplete: "off",
+          data: { chat_form_target: "input" } %>
+
+      <%= form.submit "送信",
+          class: "px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors",
+          data: { chat_form_target: "submit" } %>
+    <% end %>
+  </div>
+
+  <!-- Help Text -->
+  <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+    <h3 class="text-sm font-semibold text-blue-900 mb-2">使い方</h3>
+    <ul class="list-disc list-inside space-y-1 text-sm text-blue-800">
+      <li>「[エリア]で[部品名]が安い工場は？」のように質問してみてください</li>
+      <li>例：「東京でワイパーが安い工場は？」「大阪でブレーキパッドを探して」</li>
+      <li>エリアを指定しない場合は、全国から検索します</li>
+      <li>「リセット」ボタンで会話履歴をクリアできます</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  // Auto-scroll to bottom when new messages arrive
+  const chatMessages = document.getElementById('chat-messages');
+  const observer = new MutationObserver(() => {
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  });
+  observer.observe(chatMessages, { childList: true });
+</script>

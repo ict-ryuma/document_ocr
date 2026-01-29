@@ -10,7 +10,24 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_22_092444) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_29_011847) do
+  create_table "chat_messages", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.bigint "chat_thread_id", null: false
+    t.text "content"
+    t.datetime "created_at", null: false
+    t.string "function_name"
+    t.string "role"
+    t.datetime "updated_at", null: false
+    t.index ["chat_thread_id"], name: "index_chat_messages_on_chat_thread_id"
+  end
+
+  create_table "chat_threads", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "title"
+    t.datetime "updated_at", null: false
+    t.integer "user_id"
+  end
+
   create_table "estimate_items", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.integer "amount_excl_tax"
     t.string "cost_type"
@@ -41,5 +58,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_22_092444) do
     t.index ["vendor_name"], name: "index_estimates_on_vendor_name"
   end
 
+  add_foreign_key "chat_messages", "chat_threads"
   add_foreign_key "estimate_items", "estimates"
 end

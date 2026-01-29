@@ -1,0 +1,63 @@
+<%
+  is_user = role == "user"
+  is_error = defined?(error) && error
+%>
+
+<div class="flex <%= is_user ? 'justify-end' : 'justify-start' %>">
+  <div class="max-w-[70%]">
+    <!-- Message Bubble -->
+    <div class="<%= is_user ? 'bg-blue-600 text-white' : (is_error ? 'bg-red-100 text-red-900' : 'bg-white text-gray-900') %>
+                rounded-lg shadow-sm border <%= is_user ? 'border-blue-600' : (is_error ? 'border-red-300' : 'border-gray-200') %>
+                p-4">
+
+      <!-- Message Text -->
+      <div class="text-sm whitespace-pre-wrap">
+        <%= message %>
+      </div>
+
+      <!-- Search Results (if function was called) -->
+      <% if defined?(function_called) && function_called.present? && defined?(search_results) && search_results.present? %>
+        <div class="mt-3 pt-3 border-t <%= is_user ? 'border-blue-500' : 'border-gray-200' %>">
+          <div class="text-xs <%= is_user ? 'text-blue-100' : 'text-gray-500' %> mb-2">
+            🔍 検索結果
+          </div>
+
+          <% if search_results[:success] %>
+            <!-- Display search results -->
+            <% if search_results[:results].present? %>
+              <div class="space-y-2">
+                <% search_results[:results].take(3).each do |result| %>
+                  <div class="text-xs <%= is_user ? 'bg-blue-700' : 'bg-gray-50' %> rounded p-2">
+                    <div class="font-semibold"><%= result[:vendor_name] %></div>
+                    <div class="<%= is_user ? 'text-blue-200' : 'text-gray-600' %>">
+                      <%= result[:item_name] %> - <%= result[:amount] %>
+                    </div>
+                    <div class="<%= is_user ? 'text-blue-300' : 'text-gray-500' %> text-[10px]">
+                      <%= result[:vendor_address] %>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            <% elsif search_results[:vendor_name].present? %>
+              <!-- Display single vendor result (cheapest) -->
+              <div class="text-xs <%= is_user ? 'bg-blue-700' : 'bg-gray-50' %> rounded p-2">
+                <div class="font-semibold"><%= search_results[:vendor_name] %></div>
+                <div class="<%= is_user ? 'text-blue-200' : 'text-gray-600' %>">
+                  <%= search_results[:item_name] %> - <%= search_results[:amount] %>
+                </div>
+                <div class="<%= is_user ? 'text-blue-300' : 'text-gray-500' %> text-[10px]">
+                  <%= search_results[:vendor_address] %>
+                </div>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+
+    <!-- Timestamp -->
+    <div class="text-xs <%= is_user ? 'text-right' : 'text-left' %> text-gray-500 mt-1 px-2">
+      <%= timestamp.strftime("%H:%M") %>
+    </div>
+  </div>
+</div>

@@ -20,6 +20,11 @@ Rails.application.routes.draw do
   post "/kintone/push", to: "kintone#push"
   get  "/kintone/health", to: "kintone#health"
 
+  # Meister Bot (Chat) endpoints
+  get  "/chat", to: "chats#index", as: :chat
+  post "/chat/messages", to: "chats#create", as: :chat_messages
+  delete "/chat/reset", to: "chats#reset", as: :reset_chat
+
   # Health check
   get "/health", to: "application#health"
 end
